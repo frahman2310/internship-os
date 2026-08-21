@@ -131,6 +131,220 @@ def doctor() -> None:
     console.print("\n[green]All checks passed.[/green]")
 
 
+profile_app = typer.Typer(help="Your candidate profile and evidence.", no_args_is_help=True)
+app.add_typer(profile_app, name="profile")
+
+
+@profile_app.command("import")
+def profile_import(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Parse and report, write nothing")
+) -> None:
+    """Load the profile markdown into the database. Idempotent."""
+    report, issues = asyncio.run(_profile_import(dry_run))
+    verb = "would create" if dry_run else "created"
+    console.print(
+        f"{OK} {verb} [bold]{report.created_experiences}[/bold] experiences, "
+        f"[bold]{report.created_evidence}[/bold] evidence items, "
+        f"[bold]{report.created_skills}[/bold] skills "
+        f"([dim]{report.unchanged} already present, {report.source_bullets} source bullets[/dim])"
+    )
+    if issues:
+        console.print(
+            "\n[yellow]Source disagreements[/yellow] "
+            "[dim](reported, never merged — you decide which source is right)[/dim]"
+        )
+        for issue in issues:
+            console.print(f"  · {issue}")
+
+
+async def _profile_import(dry_run: bool):
+    from .db import session_scope
+    from .ingest.profile import cross_check_master_cv, import_profile, parse_profile_markdown
+
+    parsed = parse_profile_markdown(settings.profile_md_path)
+    issues = cross_check_master_cv(parsed, settings.master_cv_path)
+    async with session_scope() as s:
+        report = await import_profile(s, parsed, dry_run=dry_run)
+    return report, issues
+
+
+@profile_app.command("show")
+def profile_show() -> None:
+    """What the database actually holds about you."""
+    data = asyncio.run(_profile_show())
+    if data is None:
+        console.print("[yellow]No profile imported yet — run `profile import`.[/yellow]")
+        raise typer.Exit(1)
+    candidate, languages, experiences, evidence_n, skills_n = data
+    console.print(f"\n[bold]{candidate.full_name}[/bold]")
+    console.print(f"[dim]{candidate.email} · {candidate.phone} · {candidate.location_term}[/dim]")
+    if candidate.visa_status:
+        console.print(f"[dim]work rights: {candidate.visa_status}[/dim]")
+    console.print(
+        f"[dim]languages: {', '.join(f'{l.language} ({l.level})' for l in languages)}[/dim]\n"
+    )
+    table = Table(show_header=True, header_style="bold")
+    for col in ("kind", "organisation", "title", "period", "evidence"):
+        table.add_column(col, overflow="fold")
+    for exp, n in experiences:
+        table.add_row(
+            exp.kind,
+            exp.organisation[:34],
+            (exp.title or "—")[:34],
+            f"{exp.start_date or '—'} → {'present' if exp.is_current else (exp.end_date or '—')}",
+            str(n),
+        )
+    console.print(table)
+    console.print(f"[dim]{evidence_n} evidence items · {skills_n} skills[/dim]")
+
+
+async def _profile_show():
+    from sqlalchemy import func, select
+
+    from .db import session_scope
+    from .models.candidate import Candidate, CandidateLanguage, EvidenceItem, Experience, Skill
+
+    async with session_scope() as s:
+        candidate = (await s.execute(select(Candidate))).scalars().first()
+        if candidate is None:
+            return None
+        languages = (
+            (
+                await s.execute(
+                    select(CandidateLanguage).where(
+                        CandidateLanguage.candidate_id == candidate.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        exps = (
+            (
+                await s.execute(
+                    select(Experience)
+                    .where(Experience.candidate_id == candidate.id)
+                    .order_by(Experience.kind, Experience.start_date.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        counts = []
+        for e in exps:
+            n = await s.scalar(
+                select(func.count())
+                .select_from(EvidenceItem)
+                .where(EvidenceItem.experience_id == e.id)
+            )
+            counts.append((e, n))
+        evidence_n = await s.scalar(select(func.count()).select_from(EvidenceItem))
+        skills_n = await s.scalar(select(func.count()).select_from(Skill))
+        return candidate, languages, counts, evidence_n, skills_n
+
+
+@profile_app.command("verify")
+def profile_verify() -> None:
+    """Prove every stored evidence item still exists in its source file at its recorded line.
+
+    This is the anti-fabrication audit run against the database itself.
+    """
+    bad, total = asyncio.run(_profile_verify())
+    if bad:
+        console.print(f"[red]{len(bad)} of {total} evidence items no longer match source:[/red]")
+        for item in bad[:15]:
+            console.print(f"  · {item}")
+        raise typer.Exit(1)
+    console.print(f"{OK} all [bold]{total}[/bold] evidence items trace to their source line")
+
+
+async def _profile_verify():
+    from pathlib import Path
+
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .ingest.profile import normalize_for_match
+    from .models.candidate import EvidenceItem
+
+    cache: dict[str, list[str]] = {}
+    bad: list[str] = []
+    async with session_scope() as s:
+        items = (await s.execute(select(EvidenceItem))).scalars().all()
+        for item in items:
+            if item.source_file not in cache:
+                path = Path(item.source_file)
+                cache[item.source_file] = (
+                    path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+                )
+            lines = cache[item.source_file]
+            if not item.source_locator or not item.source_locator.startswith("L"):
+                continue
+            n = int(item.source_locator[1:])
+            line = lines[n - 1] if 0 < n <= len(lines) else ""
+            if normalize_for_match(item.text) not in normalize_for_match(line):
+                bad.append(f"{item.source_locator}: {item.text[:70]}")
+    return bad, len(items)
+
+
+@profile_app.command("evidence")
+def profile_evidence_add(
+    text: str,
+    organisation: str = typer.Option(..., "--org", help="Experience to attach it to"),
+) -> None:
+    """Record a fact you confirmed in conversation.
+
+    Without this, a true fact that only ever lived in a chat gets stripped later as a
+    fabrication, because the grounding audit checks against the database, not the chat.
+    """
+    ok_added = asyncio.run(_evidence_add(text, organisation))
+    if not ok_added:
+        console.print(f"[red]No experience matching '{organisation}'[/red]")
+        raise typer.Exit(1)
+    console.print(f"{OK} evidence recorded against [bold]{organisation}[/bold]")
+
+
+async def _evidence_add(text: str, organisation: str) -> bool:
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .ingest.metrics import extract_metric
+    from .ingest.profile import normalize_for_match
+    from .models.candidate import Candidate, EvidenceItem, Experience
+
+    async with session_scope() as s:
+        candidate = (await s.execute(select(Candidate))).scalars().first()
+        if candidate is None:
+            return False
+        exp = (
+            await s.execute(
+                select(Experience).where(
+                    Experience.candidate_id == candidate.id,
+                    Experience.organisation.ilike(f"%{organisation}%"),
+                )
+            )
+        ).scalars().first()
+        if exp is None:
+            return False
+        metric = extract_metric(text)
+        s.add(
+            EvidenceItem(
+                candidate_id=candidate.id,
+                experience_id=exp.id,
+                text=text,
+                normalized_text=normalize_for_match(text),
+                category="metric" if metric else "achievement",
+                metric_value=metric.value if metric else None,
+                metric_unit=metric.unit if metric else None,
+                metric_approx=metric.approx if metric else False,
+                verified_by="user_confirmed",
+                source_file="conversation",
+                source_locator=None,
+            )
+        )
+        return True
+
+
 sync_app = typer.Typer(help="Pull opportunities from a source.", no_args_is_help=True)
 opp_app = typer.Typer(help="Inspect and move opportunities.", no_args_is_help=True)
 app.add_typer(sync_app, name="sync")
