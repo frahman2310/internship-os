@@ -134,6 +134,175 @@ def doctor() -> None:
 profile_app = typer.Typer(help="Your candidate profile and evidence.", no_args_is_help=True)
 app.add_typer(profile_app, name="profile")
 
+trackr_app = typer.Typer(
+    help="Keep your own Trackr account in sync with this pipeline.", no_args_is_help=True
+)
+app.add_typer(trackr_app, name="trackr")
+
+
+@trackr_app.command("login")
+def trackr_login() -> None:
+    """Open Trackr in a browser so you can sign in. Your password is never seen or stored."""
+    from .sync.trackr_account import open_login
+
+    console.print(
+        "[dim]Opening a browser. Sign in yourself — this system does not read, request "
+        "or store credentials. The session is kept in a local browser profile.[/dim]"
+    )
+    ok_session = asyncio.run(open_login())
+    if ok_session:
+        console.print(f"{OK} session saved. Next: [bold]internship-os trackr capture[/bold]")
+    else:
+        console.print(
+            "[yellow]No Trackr cookies found — if you did not finish signing in, "
+            "run this again.[/yellow]"
+        )
+
+
+@trackr_app.command("capture")
+def trackr_capture() -> None:
+    """Record the request Trackr sends when you change a status, so it can be replayed."""
+    from .sync.trackr_account import capture_status_call
+
+    recipe = asyncio.run(capture_status_call())
+    if recipe is None:
+        console.print(
+            "[yellow]No write request captured.[/yellow] Change one programme's status in "
+            "the browser before closing it, and make sure you are signed in."
+        )
+        raise typer.Exit(1)
+    console.print(f"{OK} captured [bold]{recipe.method} {recipe.url}[/bold]")
+    if recipe.body:
+        console.print(f"  [dim]body: {str(recipe.body)[:200]}[/dim]")
+
+    ids = asyncio.run(_known_programme_ids())
+    templated, found = _templatise(recipe, ids)
+    path = templated.save()
+
+    if "programme_id" in found:
+        console.print(f"  {OK} recognised programme id [bold]{found['programme_id']}[/bold]")
+    else:
+        console.print(
+            "  [yellow]could not find a known programme id in the request[/yellow] — "
+            "push will refuse rather than risk updating the wrong row. Re-capture using a "
+            "programme this system already tracks."
+        )
+    if "status" in found:
+        console.print(f"  {OK} recognised status label [bold]{found['status']}[/bold]")
+    console.print(f"  [dim]template saved to {path}[/dim]")
+
+
+def _templatise(recipe, ids):
+    from .sync.trackr_account import templatise
+
+    return templatise(recipe, ids)
+
+
+async def _known_programme_ids() -> set[str]:
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .models.opportunity import Opportunity
+
+    async with session_scope() as s:
+        rows = (await s.execute(select(Opportunity.source_ref))).scalars().all()
+    return {r for r in rows if r}
+
+
+@trackr_app.command("push")
+def trackr_push(
+    opportunity_id: int = typer.Argument(None, help="One opportunity; omit for all changed"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the request, send nothing"),
+) -> None:
+    """Push local pipeline status into your Trackr account."""
+    try:
+        results = asyncio.run(_trackr_push(opportunity_id, dry_run))
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if not results:
+        console.print("[yellow]Nothing to push.[/yellow]")
+        return
+    for label, outcome in results:
+        console.print(f"  {label}: {outcome}")
+
+
+async def _trackr_push(opportunity_id: int | None, dry_run: bool):
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .models.company import Company
+    from .models.opportunity import Opportunity
+    from .sync.trackr_account import STATUS_MAP, StatusRecipe, push_status, render
+
+    recipe = StatusRecipe.load()
+    if recipe is None:
+        raise FileNotFoundError(
+            "no captured recipe — run `internship-os trackr login` then `trackr capture`"
+        )
+
+    async with session_scope() as s:
+        stmt = select(Opportunity, Company).join(Company, Opportunity.company_id == Company.id)
+        if opportunity_id:
+            stmt = stmt.where(Opportunity.id == opportunity_id)
+        else:
+            stmt = stmt.where(Opportunity.state.not_in(["DISCOVERED", "EXPIRED"]))
+        rows = (await s.execute(stmt)).all()
+
+    results = []
+    for opp, company, in [(o, c) for o, c in rows]:
+        if not opp.source_ref:
+            results.append((f"{company.name} — {opp.title[:34]}", "skipped (no Trackr id)"))
+            continue
+        label_remote = STATUS_MAP.get(opp.state, "Not Applied")
+        if dry_run:
+            url, body = render(recipe, opp.source_ref, label_remote)
+            results.append(
+                (f"{company.name} — {opp.title[:34]}", f"would {recipe.method} {url} {body or ''}")
+            )
+            continue
+        status_code, text = await push_status(opp.source_ref, label_remote)
+        ok_push = 200 <= status_code < 300
+        results.append(
+            (
+                f"{company.name} — {opp.title[:34]}",
+                f"{'✓' if ok_push else '✗'} {label_remote} (HTTP {status_code}) {'' if ok_push else text}",
+            )
+        )
+    return results
+
+
+@trackr_app.command("status")
+def trackr_status() -> None:
+    """Show whether the Trackr write-back path is set up."""
+    from .sync.trackr_account import STATUS_MAP, profile_dir, StatusRecipe
+
+    has_profile = any(profile_dir().iterdir()) if profile_dir().exists() else False
+    recipe = StatusRecipe.load()
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("step")
+    table.add_column("status")
+    table.add_column("detail", overflow="fold")
+    table.add_row(
+        "browser session",
+        OK if has_profile else WARN,
+        str(profile_dir()) if has_profile else "run `trackr login`",
+    )
+    table.add_row(
+        "status recipe",
+        OK if recipe else WARN,
+        f"{recipe.method} {recipe.url}" if recipe else "run `trackr capture`",
+    )
+    console.print(table)
+    console.print("\n[bold]state mapping[/bold] [dim](local → Trackr)[/dim]")
+    seen: set[str] = set()
+    for local, remote in STATUS_MAP.items():
+        if remote in seen:
+            continue
+        seen.add(remote)
+        sources = [k for k, v in STATUS_MAP.items() if v == remote]
+        console.print(f"  {remote:<12} ← {', '.join(sources[:4])}{' …' if len(sources) > 4 else ''}")
+
 
 @profile_app.command("import")
 def profile_import(
