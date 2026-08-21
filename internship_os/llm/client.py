@@ -11,6 +11,7 @@ what makes the test suite runnable without burning tokens.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import time
@@ -114,6 +115,70 @@ def _is_free(model: str) -> bool:
     return "free" in model.lower()
 
 
+
+# Statuses meaning "this provider might serve it later": rate limits and pool exhaustion.
+RETRYABLE_STATUS = {429, 502, 503, 504}
+
+
+async def _one_pass(
+    client: httpx.AsyncClient,
+    chain: list[str],
+    messages: list[dict],
+    temperature: float,
+    max_tokens: int,
+    phash: str,
+    purpose: str | None,
+    failures: list[str],
+) -> tuple[LlmResult | None, bool]:
+    """Try every model once. Returns (result, whether any failure looked temporary)."""
+    saw_retryable = False
+    for model in chain:
+        started = time.perf_counter()
+        try:
+            r = await client.post(
+                _chat_url(),
+                headers={
+                    "Authorization": f"Bearer {settings.llm_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": False,  # the gateway streams SSE unless told otherwise
+                },
+            )
+            r.raise_for_status()
+            body = r.json()
+            text = (body["choices"][0]["message"].get("content") or "").strip()
+            if not text:
+                # Reasoning models can spend the entire budget on `reasoning_content`
+                # and return empty content. Treat as failure rather than hand an empty
+                # string to a schema parser.
+                raise ValueError(f"{model} returned empty content")
+            latency = int((time.perf_counter() - started) * 1000)
+            await _log(
+                phash=phash,
+                model=model,
+                response=text,
+                purpose=purpose,
+                latency_ms=latency,
+                cache_hit=False,
+                usage=body.get("usage"),
+                cost_usd=0.0,
+            )
+            return LlmResult(text=text, model=model, cache_hit=False, latency_ms=latency), False
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            saw_retryable = saw_retryable or status in RETRYABLE_STATUS
+            failures.append(f"{model}: HTTP {status}")
+        except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:
+            saw_retryable = saw_retryable or isinstance(exc, httpx.TimeoutException)
+            failures.append(f"{model}: {type(exc).__name__} {str(exc)[:60]}")
+    return None, saw_retryable
+
+
 async def chat(
     messages: list[dict],
     *,
@@ -123,7 +188,12 @@ async def chat(
     purpose: str | None = None,
     use_cache: bool = True,
 ) -> LlmResult:
-    """Return assistant text, trying each model in the chain until one answers."""
+    """Return assistant text, trying each model in the chain until one answers.
+
+    A whole chain can fail with 429/503 when free provider pools drain — which is a
+    "later", not a "no". In that case the chain is retried after a short backoff rather
+    than failing a research run outright.
+    """
     chain = models or settings.research_model_chain()
     if not chain:
         raise LlmUnavailable("no model chain configured")
@@ -138,58 +208,25 @@ async def chat(
     if settings.llm_offline:
         raise LlmUnavailable(
             "offline mode: no cached response for this prompt. "
-            "Run once online to populate the cache, or pass use_cache=True with a warm cache."
+            "Run once online to populate the cache."
         )
 
     failures: list[str] = []
     async with httpx.AsyncClient(timeout=settings.llm_timeout_s) as client:
-        for model in chain:
-            started = time.perf_counter()
-            try:
-                r = await client.post(
-                    _chat_url(),
-                    headers={
-                        "Authorization": f"Bearer {settings.llm_api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        # The gateway streams SSE unless told otherwise.
-                        "stream": False,
-                    },
-                )
-                r.raise_for_status()
-                body = r.json()
-                text = (body["choices"][0]["message"].get("content") or "").strip()
-                if not text:
-                    # Reasoning models can spend the whole budget on `reasoning_content`
-                    # and return empty content. That is a failure, so fail over rather
-                    # than hand an empty string to a schema parser.
-                    raise ValueError(f"{model} returned empty content")
-                latency = int((time.perf_counter() - started) * 1000)
-                await _log(
-                    phash=phash,
-                    model=model,
-                    response=text,
-                    purpose=purpose,
-                    latency_ms=latency,
-                    cache_hit=False,
-                    usage=body.get("usage"),
-                    cost_usd=0.0 if _is_free(model) else 0.0,
-                )
-                return LlmResult(text=text, model=model, cache_hit=False, latency_ms=latency)
-            except httpx.HTTPStatusError as exc:
-                failures.append(f"{model}: HTTP {exc.response.status_code}")
-                continue
-            except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:
-                failures.append(f"{model}: {type(exc).__name__} {str(exc)[:60]}")
-                continue
+        for attempt in range(max(1, settings.llm_max_passes)):
+            if attempt:
+                await asyncio.sleep(settings.llm_retry_delay_s * (2 ** (attempt - 1)))
+                failures.append(f"-- retry pass {attempt + 1} --")
+            result, retryable = await _one_pass(
+                client, chain, messages, temperature, max_tokens, phash, purpose, failures
+            )
+            if result is not None:
+                return result
+            if not retryable:
+                break
 
-    # Report every model's own failure: "all models failed" plus one status code hides
-    # whether the gateway is down, out of quota, or rejecting a specific provider.
+    # Each model's own failure is reported: one aggregate status code hides whether the
+    # gateway is down, out of quota, or rejecting one provider.
     raise LlmUnavailable(
         f"all {len(chain)} model(s) failed at {settings.llm_base_url}\n  "
         + "\n  ".join(failures)

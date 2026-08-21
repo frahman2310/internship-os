@@ -15,14 +15,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _env_base_url() -> str | None:
-    """Reuse the gateway the shell is already pointed at, normalised to an /v1 root."""
-    base = os.environ.get("ANTHROPIC_BASE_URL")
-    if not base:
-        return None
-    base = base.rstrip("/")
-    return base if base.endswith("/v1") else f"{base}/v1"
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -49,8 +41,8 @@ class Settings(BaseSettings):
     # that stops entirely is worse than one that costs a little.
     llm_research_models: str = Field(
         default=(
-            "auto/best-free,oc/deepseek-v4-flash-free,oc/minimax-m3-free,"
-            "oc/qwen3.6-plus-free,auto/cheap,auto/best-chat"
+            "auto/best-free,oc/big-pickle,oc/deepseek-v4-flash-free,"
+            "oc/minimax-m3-free,auto/cheap,auto/best-chat"
         )
     )
     # Strategy + drafting want quality. The chain ends in free models on purpose: if a
@@ -60,6 +52,9 @@ class Settings(BaseSettings):
         default="auto/best-reasoning,auto/best-chat,auto/best-free,oc/deepseek-v4-flash-free"
     )
     llm_timeout_s: float = Field(default=120.0)
+    # Free provider pools drain and refill; one backoff pass beats failing a run.
+    llm_max_passes: int = Field(default=2)
+    llm_retry_delay_s: float = Field(default=8.0)
     llm_offline: bool = Field(default=False)
     research_budget_usd: float = Field(default=1.0)
 

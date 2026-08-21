@@ -35,6 +35,8 @@ def patched(engine, monkeypatch):
 
     monkeypatch.setattr(llm, "session_scope", _scope)
     monkeypatch.setattr(settings, "llm_offline", False)
+    # No real backoff in tests; the retry behaviour is asserted by call counts.
+    monkeypatch.setattr(settings, "llm_retry_delay_s", 0.0)
     return factory
 
 
@@ -100,6 +102,43 @@ class TestFailover:
         message = str(excinfo.value)
         assert "a/one: HTTP 503" in message
         assert "b/two: HTTP 503" in message
+
+
+class TestRetryOnExhaustion:
+    async def test_a_drained_pool_is_retried_not_abandoned(self, patched, monkeypatch):
+        """503/429 across the whole chain means 'later', not 'no'.
+
+        Free provider pools drain and refill; failing a research run outright because
+        every model was momentarily exhausted would be the wrong call.
+        """
+        monkeypatch.setattr(settings, "llm_retry_delay_s", 0.0)
+        calls = {"n": 0}
+
+        def handler(_request):
+            calls["n"] += 1
+            # Everything is exhausted on the first pass; the second pass succeeds.
+            if calls["n"] <= 2:
+                return httpx.Response(503, json={"error": "pool exhausted"})
+            return _reply("recovered")
+
+        monkeypatch.setattr(llm.httpx, "AsyncClient", _mock_client(handler))
+        result = await llm.chat(MESSAGES, models=["a/one", "b/two"])
+        assert result.text == "recovered"
+        assert calls["n"] == 3, "should retry the chain after a backoff"
+
+    async def test_permanent_failures_are_not_retried(self, patched, monkeypatch):
+        """A 400 will still be a 400 in eight seconds. Do not burn the wait."""
+        monkeypatch.setattr(settings, "llm_retry_delay_s", 0.0)
+        calls = {"n": 0}
+
+        def handler(_request):
+            calls["n"] += 1
+            return httpx.Response(400, json={"error": "bad model"})
+
+        monkeypatch.setattr(llm.httpx, "AsyncClient", _mock_client(handler))
+        with pytest.raises(llm.LlmUnavailable):
+            await llm.chat(MESSAGES, models=["a/one", "b/two"])
+        assert calls["n"] == 2, "one pass only for non-retryable errors"
 
 
 class TestCache:
