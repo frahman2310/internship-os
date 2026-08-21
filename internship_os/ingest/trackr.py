@@ -93,8 +93,13 @@ class TrackrAdapter:
         if open_only:
             args.append("--open")
 
+        # limit= raised well above asyncio's 64KiB default: a full season is ~500KB of
+        # pretty-printed JSON, and the default silently truncates mid-document.
         proc = await asyncio.create_subprocess_exec(
-            *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            limit=16 * 1024 * 1024,
         )
         out, err = await proc.communicate()
 
