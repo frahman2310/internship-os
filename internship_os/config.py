@@ -6,12 +6,22 @@ a broken pdflatex path should surface in `doctor`, not halfway through a CV comp
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _env_base_url() -> str | None:
+    """Reuse the gateway the shell is already pointed at, normalised to an /v1 root."""
+    base = os.environ.get("ANTHROPIC_BASE_URL")
+    if not base:
+        return None
+    base = base.rstrip("/")
+    return base if base.endswith("/v1") else f"{base}/v1"
 
 
 class Settings(BaseSettings):
@@ -25,11 +35,23 @@ class Settings(BaseSettings):
     var_dir: Path = Field(default=REPO_ROOT / "var")
 
     # --- LLM (OmniRoute gateway, OpenAI-compatible) ------------------------
+    # Falls back to the gateway credentials already in the environment, so no secret is
+    # ever copied into this repo or into a config file. Set LLM_API_KEY to override.
+    # Pinned to the local OmniRoute gateway on purpose: ANTHROPIC_BASE_URL in a shell may
+    # legitimately point at the real Anthropic API, and research is meant to run on the
+    # gateway's free models. Override with LLM_BASE_URL.
     llm_base_url: str = Field(default="http://localhost:20128/v1")
-    llm_api_key: str = Field(default="not-needed")
-    # Research is outsourced to free models; first that answers wins.
+    llm_api_key: str = Field(
+        default_factory=lambda: os.environ.get("ANTHROPIC_AUTH_TOKEN") or "not-needed"
+    )
+    # Research is outsourced to free models; first that answers wins. The tail is the
+    # cheap/paid tier: free providers go down or run dry regularly, and a research run
+    # that stops entirely is worse than one that costs a little.
     llm_research_models: str = Field(
-        default="auto/best-free,oc/deepseek-v4-flash-free,oc/minimax-m3-free,oc/qwen3.6-plus-free"
+        default=(
+            "auto/best-free,oc/deepseek-v4-flash-free,oc/minimax-m3-free,"
+            "oc/qwen3.6-plus-free,auto/cheap,auto/best-chat"
+        )
     )
     # Strategy + drafting want quality. The chain ends in free models on purpose: if a
     # paid provider is out of quota (429/402), the client falls through rather than

@@ -100,7 +100,7 @@ def doctor() -> None:
             failures += 1
             table.add_row(label, BAD, f"not at {path}")
 
-    # LLM gateway
+    # LLM gateway — listed models
     try:
         models = asyncio.run(_check_llm())
         chain = settings.research_model_chain()
@@ -119,6 +119,18 @@ def doctor() -> None:
         failures += 1
         table.add_row("llm gateway", BAD, f"{settings.llm_base_url} unreachable ({exc})")
 
+    # A gateway that lists models can still serve none of them, so actually ask one.
+    try:
+        model_used = asyncio.run(_probe_llm())
+        table.add_row("llm completion", OK, f"answered by {model_used}")
+    except Exception as exc:  # noqa: BLE001
+        failures += 1
+        table.add_row(
+            "llm completion",
+            BAD,
+            f"no model in the research chain could answer — {exc}",
+        )
+
     console.print(table)
     console.print(
         "\n[dim]Note: automating employer ATS portals may conflict with their terms. "
@@ -133,6 +145,161 @@ def doctor() -> None:
 
 profile_app = typer.Typer(help="Your candidate profile and evidence.", no_args_is_help=True)
 app.add_typer(profile_app, name="profile")
+
+research_app = typer.Typer(help="Evidence-backed company research.", no_args_is_help=True)
+app.add_typer(research_app, name="research")
+
+
+@research_app.command("run")
+def research_run(
+    opportunity_id: int,
+    depth: str = typer.Option("standard", help="quick | standard | deep | extreme"),
+) -> None:
+    """Research one opportunity. Every claim ends up traceable to a quoted source."""
+    report = asyncio.run(_research_run(opportunity_id, depth))
+    console.print(
+        f"{OK} {report.claims} claims from {report.excerpts} excerpts · "
+        f"{report.pages_fetched} pages · {report.recalled} questions answered from memory"
+    )
+    if report.discarded_quotes:
+        console.print(
+            f"  [yellow]{report.discarded_quotes} quote(s) discarded[/yellow] "
+            "[dim]— not found verbatim in the fetched page[/dim]"
+        )
+    if report.open_questions:
+        console.print("  [dim]still unanswered:[/dim]")
+        for q in report.open_questions[:5]:
+            console.print(f"    · {q}")
+
+
+async def _research_run(opportunity_id: int, depth: str):
+    from .db import session_scope
+    from .models.company import Company
+    from .models.opportunity import Opportunity
+    from .research.orchestrator import run_research
+    from .research.sources.fetch import domain_of
+
+    async with session_scope() as s:
+        opp = await s.get(Opportunity, opportunity_id)
+        if opp is None:
+            raise typer.BadParameter(f"no opportunity with id {opportunity_id}")
+        company = await s.get(Company, opp.company_id)
+        domains = {domain_of(u) for u in (company.careers_url, company.website, opp.apply_url) if u}
+        console.print(
+            f"[dim]Researching {company.name} — {opp.title} ({depth})…[/dim]"
+        )
+        return await run_research(
+            s,
+            company=company.name,
+            role=opp.title,
+            subject_type="company",
+            subject_id=company.id,
+            depth=depth,
+            company_domains={d for d in domains if d},
+        )
+
+
+@research_app.command("show")
+def research_show(opportunity_id: int) -> None:
+    """What we know about this company, with confidence, sources and what we don't know."""
+    data = asyncio.run(_research_show(opportunity_id))
+    if not data:
+        console.print("[yellow]No research yet — run `research run <id>`.[/yellow]")
+        raise typer.Exit(1)
+    company_name, grouped, open_qs = data
+    console.print(f"\n[bold]{company_name}[/bold] — evidence-backed findings\n")
+    for topic, claims in grouped.items():
+        console.print(f"[bold]{topic}[/bold]")
+        for claim, sources in claims:
+            colour = (
+                "green" if claim.confidence >= 0.75
+                else "yellow" if claim.confidence >= 0.5
+                else "red"
+            )
+            from .research.confidence import band
+
+            console.print(
+                f"  [{colour}]{claim.confidence:.2f}[/{colour}] "
+                f"[dim]({claim.epistemic_class}, {band(claim.confidence)})[/dim] "
+                f"{claim.statement}"
+            )
+            if claim.bias_flags:
+                console.print(f"      [dim]flags: {', '.join(map(str, claim.bias_flags[:4]))}[/dim]")
+            for url in sources[:2]:
+                console.print(f"      [dim]↳ {url[:88]}[/dim]")
+        console.print()
+    if open_qs:
+        console.print("[bold]Not established[/bold] [dim](the report says what it lacks)[/dim]")
+        for q in open_qs[:6]:
+            console.print(f"  · {q}")
+
+
+async def _research_show(opportunity_id: int):
+    from collections import defaultdict
+
+    from sqlalchemy import select
+
+    from .db import session_scope
+    from .models.company import Company
+    from .models.opportunity import Opportunity
+    from .models.research import (
+        ClaimEvidence,
+        ResearchClaim,
+        ResearchExcerpt,
+        ResearchQuestion,
+        ResearchSource,
+    )
+
+    async with session_scope() as s:
+        opp = await s.get(Opportunity, opportunity_id)
+        if opp is None:
+            return None
+        company = await s.get(Company, opp.company_id)
+        claims = (
+            (
+                await s.execute(
+                    select(ResearchClaim)
+                    .where(
+                        ResearchClaim.subject_type == "company",
+                        ResearchClaim.subject_id == company.id,
+                        ResearchClaim.superseded_by_id.is_(None),
+                    )
+                    .order_by(ResearchClaim.topic, ResearchClaim.confidence.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not claims:
+            return None
+        grouped: dict[str, list] = defaultdict(list)
+        for claim in claims:
+            urls = (
+                (
+                    await s.execute(
+                        select(ResearchSource.url)
+                        .join(ResearchExcerpt, ResearchExcerpt.source_id == ResearchSource.id)
+                        .join(ClaimEvidence, ClaimEvidence.excerpt_id == ResearchExcerpt.id)
+                        .where(ClaimEvidence.claim_id == claim.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            grouped[claim.topic].append((claim, list(dict.fromkeys(urls))))
+        open_qs = (
+            (
+                await s.execute(
+                    select(ResearchQuestion.text).where(
+                        ResearchQuestion.status == "unanswerable"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return company.name, dict(grouped), list(dict.fromkeys(open_qs))
+
 
 trackr_app = typer.Typer(
     help="Keep your own Trackr account in sync with this pipeline.", no_args_is_help=True
@@ -761,6 +928,17 @@ async def _check_llm() -> list[str]:
     from .llm.client import list_models
 
     return await list_models()
+
+
+async def _probe_llm() -> str:
+    from .llm.client import chat
+
+    result = await chat(
+        [{"role": "user", "content": "Reply with exactly: ready"}],
+        max_tokens=600,
+        purpose="doctor:probe",
+    )
+    return result.model
 
 
 if __name__ == "__main__":  # pragma: no cover

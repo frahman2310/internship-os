@@ -141,7 +141,7 @@ async def chat(
             "Run once online to populate the cache, or pass use_cache=True with a warm cache."
         )
 
-    last_error: Exception | None = None
+    failures: list[str] = []
     async with httpx.AsyncClient(timeout=settings.llm_timeout_s) as client:
         for model in chain:
             started = time.perf_counter()
@@ -157,11 +157,18 @@ async def chat(
                         "messages": messages,
                         "temperature": temperature,
                         "max_tokens": max_tokens,
+                        # The gateway streams SSE unless told otherwise.
+                        "stream": False,
                     },
                 )
                 r.raise_for_status()
                 body = r.json()
-                text = body["choices"][0]["message"]["content"].strip()
+                text = (body["choices"][0]["message"].get("content") or "").strip()
+                if not text:
+                    # Reasoning models can spend the whole budget on `reasoning_content`
+                    # and return empty content. That is a failure, so fail over rather
+                    # than hand an empty string to a schema parser.
+                    raise ValueError(f"{model} returned empty content")
                 latency = int((time.perf_counter() - started) * 1000)
                 await _log(
                     phash=phash,
@@ -174,8 +181,16 @@ async def chat(
                     cost_usd=0.0 if _is_free(model) else 0.0,
                 )
                 return LlmResult(text=text, model=model, cache_hit=False, latency_ms=latency)
+            except httpx.HTTPStatusError as exc:
+                failures.append(f"{model}: HTTP {exc.response.status_code}")
+                continue
             except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:
-                last_error = exc
+                failures.append(f"{model}: {type(exc).__name__} {str(exc)[:60]}")
                 continue
 
-    raise LlmUnavailable(f"all {len(chain)} models failed; last error: {last_error!r}")
+    # Report every model's own failure: "all models failed" plus one status code hides
+    # whether the gateway is down, out of quota, or rejecting a specific provider.
+    raise LlmUnavailable(
+        f"all {len(chain)} model(s) failed at {settings.llm_base_url}\n  "
+        + "\n  ".join(failures)
+    )

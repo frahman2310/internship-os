@@ -93,8 +93,13 @@ class TestFailover:
             return httpx.Response(503, json={"error": "down"})
 
         monkeypatch.setattr(llm.httpx, "AsyncClient", _mock_client(handler))
-        with pytest.raises(llm.LlmUnavailable, match="all 2 models failed"):
+        with pytest.raises(llm.LlmUnavailable) as excinfo:
             await llm.chat(MESSAGES, models=["a/one", "b/two"])
+        # Each model's own failure must be reported: one status code for "everything
+        # failed" hides whether the gateway is down or one provider is out of quota.
+        message = str(excinfo.value)
+        assert "a/one: HTTP 503" in message
+        assert "b/two: HTTP 503" in message
 
 
 class TestCache:
