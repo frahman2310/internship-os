@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from ..config import settings
 from ..db import session_scope
@@ -64,6 +65,13 @@ async def list_models() -> list[str]:
 
 
 async def _cached(phash: str, models: list[str]) -> tuple[str, str] | None:
+    try:
+        return await _cached_inner(phash, models)
+    except OperationalError:
+        return None
+
+
+async def _cached_inner(phash: str, models: list[str]) -> tuple[str, str] | None:
     async with session_scope() as s:
         row = (
             await s.execute(
@@ -78,6 +86,29 @@ async def _cached(phash: str, models: list[str]) -> tuple[str, str] | None:
 
 
 async def _log(
+    *,
+    phash: str,
+    model: str,
+    response: str | None,
+    purpose: str | None,
+    latency_ms: int,
+    cache_hit: bool,
+    usage: dict | None,
+    cost_usd: float,
+) -> None:
+    """Best-effort. SQLite allows a single writer, and a long-running research run holds
+    the write lock on the caller's session; losing a cache entry is an acceptable cost,
+    losing the run is not."""
+    try:
+        await _log_inner(
+            phash=phash, model=model, response=response, purpose=purpose,
+            latency_ms=latency_ms, cache_hit=cache_hit, usage=usage, cost_usd=cost_usd,
+        )
+    except OperationalError:
+        return
+
+
+async def _log_inner(
     *,
     phash: str,
     model: str,

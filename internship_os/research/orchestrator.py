@@ -191,20 +191,28 @@ async def run_research(
             if not excerpt_rows:
                 q_row.status = "unanswerable"
                 open_questions.append(planned.text)
+                await session.commit()
                 continue
 
             # --- claim -----------------------------------------------------------------
             synthesis = await agents.synthesise_claims(
                 planned.text, [r.quote for r in excerpt_rows]
             )
-            for draft in synthesis.claims[:3]:
+            for claim_index, draft in enumerate(synthesis.claims[:3]):
                 indexes = [i for i in draft.excerpt_indexes if 0 <= i < len(excerpt_rows)]
                 if not indexes:
                     indexes = list(range(min(2, len(excerpt_rows))))
                 tiers = [excerpt_meta[i][0] for i in indexes]
                 domains = [excerpt_meta[i][1] for i in indexes]
 
-                red = await agents.red_team(draft.statement)
+                # Bounded cost: red-team the leading claim only. Un-red-teamed claims
+                # are not silently trusted — they keep the `unrefuted` flag and take the
+                # confidence penalty that goes with it.
+                red = (
+                    await agents.red_team(draft.statement)
+                    if claim_index == 0
+                    else agents.RedTeam()
+                )
 
                 scored = score(
                     ClaimSignals(
@@ -255,6 +263,10 @@ async def run_research(
                 report.excerpts += len(indexes)
 
             q_row.status = "answered"
+            # Commit per question: a run lasts minutes, and SQLite has one writer.
+            # Holding the transaction open for the whole run blocks the LLM cache and
+            # loses everything if one question fails late.
+            await session.commit()
 
         if iteration + 1 < iterations and open_questions:
             gaps = await agents.find_gaps(goal, [], open_questions)
