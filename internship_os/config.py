@@ -41,8 +41,8 @@ class Settings(BaseSettings):
     # that stops entirely is worse than one that costs a little.
     llm_research_models: str = Field(
         default=(
-            "oc/big-pickle,auto/best-free,aug/claude-haiku-4.5,"
-            "ddgw/gpt-4o-mini,auto/cheap,auto/best-chat"
+            "llm7/DeepSeek-V4-Flash-0731,auto/best-free,oc/big-pickle,"
+            "llm7/XiaomiMiMo/MiMo-V2.5,auto/cheap,auto/best-chat"
         )
     )
     # Strategy + drafting want quality. The chain ends in free models on purpose: if a
