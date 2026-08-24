@@ -21,9 +21,11 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
+from ..backends import resolve
 from ..config import settings
 from ..db import session_scope
 from ..models.infra import LlmCall
+from ..secrets import redact
 
 
 class LlmUnavailable(RuntimeError):
@@ -38,8 +40,8 @@ class LlmResult:
     latency_ms: int
 
 
-def _chat_url() -> str:
-    base = settings.llm_base_url.rstrip("/")
+def _chat_url(base_url: str | None = None) -> str:
+    base = (base_url or settings.llm_base_url).rstrip("/")
     if base.endswith("/chat/completions"):
         return base
     if base.endswith("/v1"):
@@ -164,16 +166,21 @@ async def _one_pass(
     """Try every model once. Returns (result, whether any failure looked temporary)."""
     saw_retryable = False
     for model in chain:
+        backend = resolve(model)
+        if backend is None:
+            # A direct-provider model whose key is not set yet. Skip quietly so a chain
+            # can name future providers without breaking today.
+            continue
         started = time.perf_counter()
         try:
             r = await client.post(
-                _chat_url(),
+                _chat_url(backend.base_url),
                 headers={
-                    "Authorization": f"Bearer {settings.llm_api_key}",
+                    "Authorization": f"Bearer {backend.api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": model,
+                    "model": backend.model,
                     "messages": messages,
                     "temperature": temperature,
                     "max_tokens": max_tokens,
@@ -206,7 +213,7 @@ async def _one_pass(
             failures.append(f"{model}: HTTP {status}")
         except (httpx.HTTPError, KeyError, ValueError, IndexError) as exc:
             saw_retryable = saw_retryable or isinstance(exc, httpx.TimeoutException)
-            failures.append(f"{model}: {type(exc).__name__} {str(exc)[:60]}")
+            failures.append(redact(f"{model}: {type(exc).__name__} {str(exc)[:60]}"))
     return None, saw_retryable
 
 
@@ -259,6 +266,7 @@ async def chat(
     # Each model's own failure is reported: one aggregate status code hides whether the
     # gateway is down, out of quota, or rejecting one provider.
     raise LlmUnavailable(
-        f"all {len(chain)} model(s) failed at {settings.llm_base_url}\n  "
-        + "\n  ".join(failures)
+        redact(
+            f"all {len(chain)} model(s) failed\n  " + "\n  ".join(failures)
+        )
     )

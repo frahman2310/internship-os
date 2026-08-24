@@ -143,6 +143,81 @@ def doctor() -> None:
     console.print("\n[green]All checks passed.[/green]")
 
 
+key_app = typer.Typer(help="Provider keys, stored locally and never printed.", no_args_is_help=True)
+app.add_typer(key_app, name="key")
+
+
+@key_app.command("set")
+def key_set(
+    provider: str = typer.Argument(..., help="gemini | cerebras | groq | openrouter"),
+    from_clipboard: bool = typer.Option(
+        True, "--from-clipboard/--prompt", help="Read the key from the clipboard"
+    ),
+) -> None:
+    """Store a provider key.
+
+    The key is never accepted as a command-line argument (argv is visible to `ps` and
+    lands in shell history), never echoed, and never logged. Copy it, run this, done.
+    """
+    from .backends import DIRECT
+    from .secrets import clear_clipboard, masked, read_clipboard, set_secret
+
+    if provider not in DIRECT:
+        console.print(f"[red]Unknown provider '{provider}'.[/red] Known: {', '.join(DIRECT)}")
+        raise typer.Exit(1)
+
+    if from_clipboard:
+        value = read_clipboard()
+        if not value:
+            console.print("[yellow]Clipboard is empty.[/yellow] Copy the key, then re-run.")
+            raise typer.Exit(1)
+        if " " in value or "\n" in value.strip():
+            console.print(
+                "[yellow]The clipboard does not look like an API key[/yellow] "
+                "(it contains spaces or newlines). Nothing was stored."
+            )
+            raise typer.Exit(1)
+    else:
+        import getpass
+
+        value = getpass.getpass(f"{provider} key (input hidden): ")
+
+    set_secret(provider, value)
+    clear_clipboard()
+    console.print(
+        f"{OK} stored [bold]{provider}[/bold] key {masked(value)} "
+        f"[dim]-> {settings.var_dir / 'secrets.json'} (mode 0600)[/dim]"
+    )
+    console.print("[dim]Clipboard cleared. The key was never printed or sent anywhere.[/dim]")
+
+
+@key_app.command("list")
+def key_list() -> None:
+    """Show which keys are stored — masked, never in full."""
+    from .backends import DIRECT
+    from .secrets import get_secret, masked
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("provider")
+    table.add_column("key")
+    table.add_column("status")
+    for name in DIRECT:
+        value = get_secret(name)
+        table.add_row(name, masked(value), OK if value else "[dim]not set[/dim]")
+    console.print(table)
+
+
+@key_app.command("rm")
+def key_rm(provider: str) -> None:
+    """Delete a stored key."""
+    from .secrets import delete_secret
+
+    if delete_secret(provider):
+        console.print(f"{OK} removed [bold]{provider}[/bold]")
+    else:
+        console.print(f"[yellow]No stored key for {provider}[/yellow]")
+
+
 profile_app = typer.Typer(help="Your candidate profile and evidence.", no_args_is_help=True)
 app.add_typer(profile_app, name="profile")
 
