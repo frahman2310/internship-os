@@ -175,10 +175,7 @@ async def _one_pass(
         try:
             r = await client.post(
                 _chat_url(backend.base_url),
-                headers={
-                    "Authorization": f"Bearer {backend.api_key}",
-                    "Content-Type": "application/json",
-                },
+                headers=backend.headers(),
                 json={
                     "model": backend.model,
                     "messages": messages,

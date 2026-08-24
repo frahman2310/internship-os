@@ -28,6 +28,18 @@ class Backend:
     api_key: str
     model: str  # the id the upstream expects, prefix stripped
 
+    def headers(self) -> dict[str, str]:
+        h = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self.name == "gemini":
+            # Google documents X-goog-api-key for its own endpoints and accepts Bearer on
+            # the OpenAI-compatible one. Sending both means either key format — the legacy
+            # AIza… and the newer AQ.… issued by AI Studio — authenticates first time.
+            h["X-goog-api-key"] = self.api_key
+        return h
+
 
 DIRECT = {
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini"),
