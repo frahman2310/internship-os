@@ -1064,5 +1064,37 @@ async def _doc_build(opportunity_id: int):
         return await build_cv(session, opportunity_id)
 
 
+@doc_app.command("cover")
+def doc_cover(opportunity_id: int) -> None:
+    """Draft a cover letter, with every paragraph audited for grounding.
+
+    Paragraphs that cite nothing, cite an id that was never offered, or state a number
+    absent from their sources come back `ungrounded` — and an ungrounded version cannot
+    be approved, so it cannot be submitted.
+    """
+    result = asyncio.run(_doc_cover(opportunity_id))
+    console.print(f"{OK} cover letter v{result.version} · {len(result.paragraphs)} paragraphs")
+    console.print()
+    for i, para in enumerate(result.paragraphs, 1):
+        colour = {"grounded": "green", "reframed": "cyan", "ungrounded": "red"}[para.grounding]
+        console.print(f"[{colour}]{para.grounding:>10}[/{colour}] ¶{i}  [dim]{para.note}[/dim]")
+        console.print(f"  {para.text}\n")
+    if result.approvable:
+        console.print(f"{OK} every paragraph is grounded — this version can be approved")
+    else:
+        console.print(
+            f"  [red]{result.ungrounded} ungrounded paragraph(s)[/red] "
+            "[dim]— cannot be approved until fixed or removed[/dim]"
+        )
+
+
+async def _doc_cover(opportunity_id: int):
+    from .db import session_scope
+    from .documents.cover import build_cover_letter
+
+    async with session_scope() as session:
+        return await build_cover_letter(session, opportunity_id)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()

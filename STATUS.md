@@ -26,6 +26,9 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
 - **Documents (phase 5)**: `ios doc build <opp>` → tailored one-page CV, compiled and
   verified. Bullets are *selected* from evidence, never written, so every `document_claim`
   is `grounded` by construction. Track (finance/tech) is inferred per opportunity.
+- **Cover letters**: `ios doc cover <opp>`. The drafter cites ids per paragraph; the audit
+  rejects a paragraph that cites nothing, cites an id never offered, or states a number
+  absent from its sources (catches metric escalation, e.g. ~85% quietly becoming 90%).
 
 ## Two invariants (structural, not advisory)
 1. A document version **cannot** reach `approved` while any generated span is
@@ -33,6 +36,16 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
 2. Submission requires a single-use, expiring `Approval` token whose `scope_hash` is
    **recomputed against the live page** before clicking. `ats/submit.py` is the only
    module permitted to submit.
+
+## Trackr write-back — endpoint found
+Auth is a **bearer token in localStorage** (`trackrAccessToken`, refreshed at
+`/users/refresh`), NOT the cookie session the plan assumed. Write endpoints, recovered
+from the chunked Angular bundle at app.the-trackr.com and marked `authRequired`:
+
+    api.the-trackr.com/programmes/update-status
+    api.the-trackr.com/programmes/update-group-status
+
+Still needed: one live capture to pin the verb and payload shape.
 
 ## Providers
 - **Gemini**: live, `gemini/gemini-3.6-flash`. (2.5-flash is retired for new accounts.)
@@ -67,8 +80,6 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
    withholds them from the CV; the real fix is in the phase-2 importer.
 
 ## Open — next build steps
-- **Cover letters**: the remaining half of phase 5. Unlike the CV these need prose, so
-  they need the grounding audit doing real work, plus referees in the profile.
 - **Phase 6 browser assist**: Greenhouse + tal.net + generic only. ~35% of listings
   end-to-end. Workday (19%) stays manual — it requires account creation, which is refused.
 - **Phase 7**: outcomes and the learning loop.
