@@ -44,7 +44,9 @@ def _chat_url(base_url: str | None = None) -> str:
     base = (base_url or settings.llm_base_url).rstrip("/")
     if base.endswith("/chat/completions"):
         return base
-    if base.endswith("/v1"):
+    # Gemini's OpenAI-compatible root ends at /openai and Cerebras/Groq at /v1. Both are
+    # already API roots: appending another version segment 404s every call.
+    if base.endswith("/v1") or base.endswith("/openai"):
         return f"{base}/chat/completions"
     return f"{base}/v1/chat/completions"
 

@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # that stops entirely is worse than one that costs a little.
     llm_research_models: str = Field(
         default=(
-            "gemini/gemini-3.6-flash,cerebras/gpt-oss-120b,"
+            "gemini/gemini-3.6-flash,"
             "llm7/DeepSeek-V4-Flash-0731,auto/best-free,oc/big-pickle,auto/best-chat"
         )
     )

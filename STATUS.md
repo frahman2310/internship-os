@@ -23,6 +23,9 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
 - **Research engine**: live. plan → recall → search → fetch → extract → claim →
   red-team → score. Confidence is computed, never prompted.
 - **Trackr write-back**: code complete, needs one supervised capture.
+- **Documents (phase 5)**: `ios doc build <opp>` → tailored one-page CV, compiled and
+  verified. Bullets are *selected* from evidence, never written, so every `document_claim`
+  is `grounded` by construction. Track (finance/tech) is inferred per opportunity.
 
 ## Two invariants (structural, not advisory)
 1. A document version **cannot** reach `approved` while any generated span is
@@ -57,13 +60,15 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
 ## Open — needs the user
 1. Rotate the Gemini and Cerebras keys (both were pasted into a chat transcript).
 2. `ios trackr login` → sign in → `ios trackr capture` → change one status.
-3. Profile `[TODO]`s: referees, deal-breakers, LinkedIn headline, behavioural growth areas.
-   These block `/apply`'s cover letters — the grounding audit strips unbacked claims.
-4. Optional: activate the Cerebras free tier; make `personal-university` public.
+3. Profile: the only literal `[TODO]` is **referees** (line 106). Blocks cover letters,
+   not the CV.
+4. **Skill names are dirty**: the profile importer splits `Skill: a, b (x, y)` on every
+   comma, so ~5 names are fragments (`FX)`, `macro analysis (inflation`). `is_clean_skill`
+   withholds them from the CV; the real fix is in the phase-2 importer.
 
 ## Open — next build steps
-- **Phase 5 documents**: strategy → ContentPlan → LaTeX → compile → page-count + ATS
-  verification. Deterministic, needs no LLM. Reuses `templates/cv/uk-1page` + `verify_pdf`.
+- **Cover letters**: the remaining half of phase 5. Unlike the CV these need prose, so
+  they need the grounding audit doing real work, plus referees in the profile.
 - **Phase 6 browser assist**: Greenhouse + tal.net + generic only. ~35% of listings
   end-to-end. Workday (19%) stays manual — it requires account creation, which is refused.
 - **Phase 7**: outcomes and the learning loop.

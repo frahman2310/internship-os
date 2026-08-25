@@ -1,0 +1,62 @@
+%% uk-1page — single-column UK internship/spring-week CV. ONE PAGE.
+%% Structural skeleton. /apply copies this to cv/main_<company>_<role>.tex and fills content.
+%% Compile with: pdflatex -interaction=nonstopmode <file>.tex
+%% Populated reference instances: cv/main_user_finance.tex, cv/main_user_tech.tex
+
+\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{tgpagella}         % TeX Gyre Pagella (Palatino). Do NOT use mathpazo — needs URW fonts absent from TinyTeX.
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{needspace}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.02}
+
+\titleformat{\section}{\bfseries\large\scshape}{}{0em}{}[\vspace{-5pt}\rule{\linewidth}{0.7pt}]
+\titlespacing{\section}{0pt}{7pt}{3pt}
+
+% \entry{Bold org}{ — regular descriptor | location}{Bold date}
+\newcommand{\entry}[3]{\needspace{3\baselineskip}\textbf{#1}\,#2\hfill\textbf{#3}\par\vspace{1pt}}
+
+\setlist[itemize]{leftmargin=1.3em, topsep=1pt, itemsep=1.5pt, parsep=0pt, before=\vspace{1pt}}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries [FULL NAME]}\\[3pt]
+  \href{[LINKEDIN URL]}{[linkedin handle]} \quad\textbar\quad [email] \quad\textbar\quad [phone]
+\end{center}
+
+\section{Education}
+\entry{[Institution]}{— [Degree]}{[Start] -- [End]}
+\begin{itemize}
+  \item [grade / predicted classification]
+  \item Relevant modules: [modules]
+\end{itemize}
+
+\section{Work Experience}
+\entry{[Company]}{— [Role] \textbar\ [Location]}{[Dates]}
+\begin{itemize}
+  \item [achievement bullet, tailored to the target role]
+\end{itemize}
+
+\section{Extra-Curricular Activities}
+\entry{[Activity]}{— [Role]}{[Dates]}
+\begin{itemize}
+  \item [bullet]
+\end{itemize}
+
+\section{Additional}
+\begin{itemize}
+  \item \textbf{Finance:} [certifications, e.g. CFA Level 1]
+  \item \textbf{Languages:} [languages with levels]
+  \item \textbf{Interests:} [interests]
+\end{itemize}
+
+\end{document}

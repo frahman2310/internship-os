@@ -203,3 +203,14 @@ class TestPromptHash:
         assert a != llm.prompt_hash(
             [{"role": "user", "content": "different"}], 0.4, 100
         )
+
+
+def test_chat_url_does_not_double_version_provider_roots():
+    """Gemini's OpenAI-compatible root ends at /openai, not /v1. Appending another
+    version segment 404s every call — and the failure looks like a bad key."""
+    from internship_os.llm.client import _chat_url
+
+    gemini = "https://generativelanguage.googleapis.com/v1beta/openai"
+    assert _chat_url(gemini) == f"{gemini}/chat/completions"
+    assert _chat_url("https://api.cerebras.ai/v1") == "https://api.cerebras.ai/v1/chat/completions"
+    assert _chat_url("http://localhost:20128") == "http://localhost:20128/v1/chat/completions"

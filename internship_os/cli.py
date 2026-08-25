@@ -1016,5 +1016,53 @@ async def _probe_llm() -> str:
     return result.model
 
 
+doc_app = typer.Typer(help="Generate tailored application documents.", no_args_is_help=True)
+app.add_typer(doc_app, name="doc")
+
+
+@doc_app.command("build")
+def doc_build(
+    opportunity_id: int,
+    show_tex: bool = typer.Option(False, "--show-tex", help="Print the LaTeX source too."),
+) -> None:
+    """Build a one-page CV tailored to this opportunity.
+
+    Bullets are selected from your evidence, never written: what compiles is text that
+    already existed in your profile, so nothing here can drift from the source.
+    """
+    result = asyncio.run(_doc_build(opportunity_id))
+    console.print(
+        f"{OK} v{result.version} · {result.bullets} bullets · "
+        f"{result.page_count} page(s) · {result.pdf_path}"
+    )
+    for note in result.dropped:
+        console.print(f"  [dim]cut for space: {note}[/dim]")
+    for warning in result.warnings:
+        console.print(f"  [yellow]warning:[/yellow] {warning}")
+    if show_tex:
+        console.print(result_tex_of(result))
+
+
+def result_tex_of(result) -> str:
+    from .models.document import DocumentVersion
+
+    from .db import session_scope
+
+    async def _get() -> str:
+        async with session_scope() as session:
+            version = await session.get(DocumentVersion, result.version_id)
+            return version.source_text or ""
+
+    return asyncio.run(_get())
+
+
+async def _doc_build(opportunity_id: int):
+    from .db import session_scope
+    from .documents.build import build_cv
+
+    async with session_scope() as session:
+        return await build_cv(session, opportunity_id)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
