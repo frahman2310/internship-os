@@ -175,11 +175,31 @@ def check_gates(requirements: Requirements, *, graduation_year: int = 2028,
             gates.append(Gate(req.text, "pass",
                               f"on track for {classification} or above (First Class, Year 1)"))
 
-        elif "sponsor" in low or "right to work" in low or "visa" in low:
-            if any(k in low for k in ("cannot sponsor", "unable to sponsor", "no sponsorship",
-                                      "do not sponsor", "does not sponsor")):
+        elif "sponsor" in low or "right to work" in low or "visa" in low or "work authoris" in low:
+            # "Unrestricted and unlimited right to work in the UK" is the standard wording
+            # that excludes visa holders, and it bites harder than a no-sponsorship line:
+            # it rules out the internship itself, not just the graduate role after it. A
+            # UK Student visa is time-limited and hour-capped in term, so it is neither
+            # unrestricted nor unlimited on any plain reading.
+            unrestricted = any(k in low for k in (
+                "unrestricted and unlimited", "unrestricted right to work",
+                "unlimited right to work", "permanent right to work",
+                "without restriction", "no visa restrictions",
+                "not require sponsorship", "without the need for sponsorship",
+                "must already have the right to work",
+            ))
+            refuses = any(k in low for k in ("cannot sponsor", "unable to sponsor",
+                                             "no sponsorship", "do not sponsor",
+                                             "does not sponsor", "will not sponsor"))
+            if unrestricted and needs_sponsorship:
+                gates.append(Gate(req.text, "fail",
+                                  "requires an unrestricted right to work; a UK Student visa "
+                                  "is time-limited and hour-capped, so it does not qualify"))
+            elif refuses:
                 gates.append(Gate(req.text, "fail" if needs_sponsorship else "pass",
                                   "employer states it does not sponsor"))
+            elif unrestricted:
+                gates.append(Gate(req.text, "pass", "unrestricted right to work held"))
             else:
                 gates.append(Gate(req.text, "unknown", "sponsorship stance unclear"))
 

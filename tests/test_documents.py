@@ -191,3 +191,20 @@ def test_excluded_personal_topics_never_enter_the_evidence_store():
             return [t for t in rows if any(w in t.lower() for w in FORBIDDEN)]
 
     assert asyncio.run(check()) == []
+
+
+def test_unrestricted_right_to_work_wording_fails_the_visa_gate():
+    """SMBC's "Unrestricted and unlimited right to work in the UK" excludes a Student visa
+    holder from the internship itself, not merely the graduate role. The earlier matcher
+    only caught explicit "we do not sponsor" phrasing and returned unknown here, which
+    would have sent the user into an application he cannot win."""
+    from internship_os.research.application_intel import (
+        Requirement, Requirements, check_gates, harden,
+    )
+
+    reqs = harden(Requirements(requirements=[
+        Requirement(text="Unrestricted and unlimited right to work in the UK",
+                    kind="eligibility", hard=True),
+    ]))
+    assert [g.verdict for g in check_gates(reqs, needs_sponsorship=True)] == ["fail"]
+    assert [g.verdict for g in check_gates(reqs, needs_sponsorship=False)] == ["pass"]
