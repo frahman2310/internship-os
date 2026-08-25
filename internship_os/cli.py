@@ -1096,5 +1096,17 @@ async def _doc_cover(opportunity_id: int):
         return await build_cover_letter(session, opportunity_id)
 
 
+@app.command("editor")
+def editor(
+    port: int = typer.Option(8765, help="Local port."),
+    no_open: bool = typer.Option(False, "--no-open", help="Do not open a browser."),
+) -> None:
+    """Open the CV editor: edit by hand, ask for help per bullet, compile to PDF."""
+    from .editor.server import serve
+
+    console.print(f"{OK} CV editor on [bold]http://127.0.0.1:{port}[/bold]  [dim]ctrl-c to stop[/dim]")
+    serve(port=port, open_browser=not no_open)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()

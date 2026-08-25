@@ -30,6 +30,22 @@ visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
   rejects a paragraph that cites nothing, cites an id never offered, or states a number
   absent from its sources (catches metric escalation, e.g. ~85% quietly becoming 90%).
 
+## CV editor
+`ios editor` opens a local editor at 127.0.0.1:8765 (stdlib http.server + one HTML page —
+no build step, so it cannot break when a toolchain moves). Seeded from the profile with
+everything included: you cut what you do not want. Every field is editable by hand; per
+bullet, `sharpen` offers rewrites and `critique` says what a reader would object to.
+
+House style is taken from two reference CVs (Columbia finance, Oxford PPE): verb first,
+quantify what the source supports, name the method, end on the outcome. **A suggestion
+that introduces a number the original lacked is withheld and shown as blocked** — see
+`editor/assist.py:invented_numbers`. Compile writes a real PDF through the same LaTeX
+pipeline the built CVs use, and reports page count and overfull boxes.
+
+Drafts are JSON in `var/cv_drafts/`, deliberately not DocumentVersions: those are
+immutable audited build artefacts, and editing them in place would destroy the audit
+trail.
+
 ## Two invariants (structural, not advisory)
 1. A document version **cannot** reach `approved` while any generated span is
    `ungrounded`. Rephrasing evidence is allowed; inventing is unrepresentable.

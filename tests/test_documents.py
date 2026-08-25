@@ -55,3 +55,19 @@ def test_cover_audit_rejects_uncited_and_escalated_numbers():
         Paragraph(text="I automated ~85% of report generation.", evidence_ids=[7]),
         evidence, claims,
     ).grounding in {"grounded", "reframed"}
+
+
+def test_editor_blocks_invented_metrics_but_allows_rephrasing():
+    from internship_os.editor.assist import Suggestion, invented_numbers
+
+    original = "Conducted research into a new project within the Dolmen Mall REIT mandate"
+    # pure language sharpening: nothing invented
+    assert invented_numbers(original, "Researched FinTech for the Dolmen Mall REIT mandate") == []
+    # the failure mode this exists to stop: a metric appearing from nowhere
+    assert invented_numbers(original, "Research that lifted returns by 25%") == ["25%"]
+    # a number already in the source may be kept, moved, or surfaced
+    sourced = "oversaw an $8,000 budget and delivered $1,000 net profit"
+    assert invented_numbers(sourced, "Delivered $1,000 profit on an $8,000 budget") == []
+
+    assert Suggestion("x", "y", []).safe
+    assert not Suggestion("x", "y", ["25%"]).safe
