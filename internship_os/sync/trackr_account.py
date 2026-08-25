@@ -1,7 +1,15 @@
 """Write your application status back into your own Trackr account.
 
-Trackr's status feature is authenticated with a **cookie session** (`withCredentials`), and
-its write endpoint is minified out of the JS bundle. So the endpoint is not guessed — it is
+Trackr's status feature is authenticated with a **bearer token held in localStorage**
+(`trackrAccessToken`, refreshed via `/users/refresh` with `trackrRefreshToken`) — NOT the
+cookie session originally assumed. The write endpoints were recovered from the chunked
+Angular bundle:
+
+    POST/PUT  https://api.the-trackr.com/programmes/update-status        (single programme)
+    POST/PUT  https://api.the-trackr.com/programmes/update-group-status  (a group)
+
+Both are marked `authRequired` in the app's route table. The exact verb and payload shape
+still come from a live capture rather than a guess — it is
 *discovered* from your own action:
 
     1. `trackr login`   — a headed browser opens; YOU type your credentials. The system
