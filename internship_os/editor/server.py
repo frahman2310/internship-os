@@ -27,8 +27,18 @@ PAGE = Path(__file__).parent / "app.html"
 def draft_to_latex(draft: store.Draft) -> str:
     """Render an edited draft with the same preamble the built CVs use, so what you see
     here is what a compiled application document looks like."""
+    # The reference CVs (LSE, Columbia) run denser than the shared uk-1page template,
+    # which is tuned for a lighter CV. Overriding here rather than in the template keeps
+    # `doc build` output unchanged while letting a full page of real content fit.
+    dense = "\n".join([
+        r"\geometry{margin=1.25cm}",
+        r"\titlespacing{\section}{0pt}{5pt}{2pt}",
+        r"\setlist[itemize]{leftmargin=1.15em, topsep=0pt, itemsep=0.8pt, parsep=0pt, before=\vspace{0.5pt}}",
+        r"\linespread{0.99}",
+    ])
     parts = [
         preamble(),
+        dense,
         r"\begin{document}",
         r"\begin{center}",
         f"  {{\\LARGE\\bfseries {esc(draft.name)}}}\\\\[3pt]",
