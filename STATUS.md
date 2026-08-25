@@ -46,6 +46,25 @@ Drafts are JSON in `var/cv_drafts/`, deliberately not DocumentVersions: those ar
 immutable audited build artefacts, and editing them in place would destroy the audit
 trail.
 
+## The application pipeline
+`ios batch list` / `ios batch show N` — live roles in batches of ten, ordered by urgency.
+**49 live UK Finance roles, 30 Tech** (not 383: Trackr's `date` is the *opening* date and
+`rolling` is set on most unopened rows too — `pipeline/live.py:is_open` is the only correct
+test, and it is covered by a regression test).
+
+Four writing surfaces, deliberately separate:
+| Surface | Command | How it is kept honest |
+|---|---|---|
+| CV | `ios doc build` / `ios editor` | evidence selected verbatim; grounded by construction |
+| Cover letter | `ios doc cover` | per-paragraph citations; unsupported numbers rejected |
+| Answers | `ios answer <id> "<q>"` | competency-classified, hard word limit, one revision pass |
+| Autofill | `ios autofill` | 34 fields; 17 legally sensitive ones never filled |
+
+`writing/voice.py` compiles the user's AI_WRITING_BLACKLIST.csv into 146 regex rules that run
+before he sees any draft. Domain exceptions stop it flagging real finance vocabulary
+("leverage multiples", "leveraged finance"). VOICE_DNA.md is deliberately NOT used for
+register — it was derived from confessional essays and is wrong for applications.
+
 ## Two invariants (structural, not advisory)
 1. A document version **cannot** reach `approved` while any generated span is
    `ungrounded`. Rephrasing evidence is allowed; inventing is unrepresentable.

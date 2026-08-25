@@ -71,3 +71,40 @@ def test_editor_blocks_invented_metrics_but_allows_rephrasing():
 
     assert Suggestion("x", "y", []).safe
     assert not Suggestion("x", "y", ["25%"]).safe
+
+
+def test_live_role_filter_requires_an_actual_opening_date():
+    """Trackr's `rolling` flag is set on most rows including unopened ones; treating it
+    as 'open' counted 383 UK finance roles when 49 had actually opened."""
+    from internship_os.models.opportunity import Opportunity
+    from internship_os.pipeline.live import is_open
+
+    def opp(**payload):
+        o = Opportunity(company_id=1, source_adapter="t", dedup_key="k", title="x")
+        o.raw_payload = payload
+        return o
+
+    today = "2026-08-25"
+    assert not is_open(opp(rolling=True), today)                      # rolling, never opened
+    assert is_open(opp(date="2026-08-01", rolling=True), today)        # opened, rolling
+    assert not is_open(opp(date="2026-12-01"), today)                  # opens in future
+    assert not is_open(opp(date="2026-01-01", deadline="2026-06-01"), today)  # closed
+    assert is_open(opp(date="2026-01-01", deadline="2026-09-30"), today)
+
+
+def test_autofill_never_returns_legally_sensitive_fields():
+    from internship_os.ats.autofill import is_reserved
+
+    for label in ("Date of Birth", "National Insurance Number", "Passport number",
+                  "Ethnic origin", "Gender identity", "Do you have a disability?",
+                  "Salary expectations", "Were you eligible for free school meals?"):
+        assert is_reserved(label), label
+    for label in ("First name", "Email address", "Which university?", "Expected graduation"):
+        assert not is_reserved(label), label
+
+
+def test_voice_scanner_spares_finance_vocabulary():
+    from internship_os.writing.voice import report
+
+    assert report("Benchmarked leverage multiples in leveraged finance")["strong"] == []
+    assert any("delve" in h for h in report("Let us delve into the tapestry")["strong"])

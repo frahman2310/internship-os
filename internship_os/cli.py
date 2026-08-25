@@ -1108,5 +1108,111 @@ def editor(
     serve(port=port, open_browser=not no_open)
 
 
+batch_app = typer.Typer(help="Work live applications in batches of ten.", no_args_is_help=True)
+app.add_typer(batch_app, name="batch")
+
+
+@batch_app.command("list")
+def batch_list(industry: str = typer.Option("Finance", help="Finance | Tech")) -> None:
+    """How many roles are actually open, and how many batches that is."""
+    total, count = asyncio.run(_batch_overview(industry))
+    console.print(f"{OK} {total} live {industry} roles · {count} batches of 10")
+
+
+@batch_app.command("show")
+def batch_show(
+    index: int = typer.Argument(1, help="Which batch"),
+    industry: str = typer.Option("Finance", help="Finance | Tech"),
+) -> None:
+    """One batch, with what each application still needs."""
+    b = asyncio.run(_load_batch(industry, index))
+    if not b.items:
+        console.print("no live roles")
+        return
+    table = Table(title=f"{industry} — batch {b.index} of {b.total}", box=None, header_style="dim")
+    for col in ("id", "company", "deadline", "needs", "stage"):
+        table.add_column(col)
+    for item in b.items:
+        needs = ", ".join(
+            x for x, on in (("cover", item.needs_cover), ("answers", item.needs_answers)) if on
+        ) or "cv only"
+        colour = {"ready to review": "green", "ungrounded — blocked": "red"}.get(item.stage, "yellow")
+        urgency = f"[red]{item.role.deadline or 'rolling'}[/red]" if item.role.urgency == "critical" \
+            else (item.role.deadline or "rolling")
+        table.add_row(str(item.role.opportunity.id), item.role.company[:26], urgency,
+                      needs, f"[{colour}]{item.stage}[/{colour}]")
+    console.print(table)
+    console.print(f"  [dim]{b.ready}/{len(b.items)} ready to review[/dim]")
+
+
+@app.command("answer")
+def answer_cmd(
+    opportunity_id: int,
+    question: str,
+    words: int = typer.Option(250, help="Word limit the form imposes."),
+) -> None:
+    """Draft one application answer, grounded and scanned for AI tells."""
+    a = asyncio.run(_build_answer(opportunity_id, question, words))
+    flag = "green" if a.ok else "yellow"
+    console.print(
+        f"[{flag}]{a.competency}[/{flag}] · {a.words}/{a.limit} words · "
+        f"grounding: {a.grounding} · voice: {'clean' if a.tells.get('clean') else 'tells found'}"
+    )
+    if a.tells.get("strong"):
+        console.print(f"  [red]strong tells:[/red] {'; '.join(a.tells['strong'])}")
+    if a.tells.get("medium"):
+        console.print(f"  [dim]medium: {'; '.join(a.tells['medium'][:4])}[/dim]")
+    if not a.within_limit:
+        console.print(f"  [red]over the limit by {a.words - a.limit} words[/red]")
+    console.print()
+    console.print(a.text)
+
+
+@app.command("autofill")
+def autofill_cmd() -> None:
+    """The values a browser assist may enter, and the fields it never will."""
+    plan = asyncio.run(_autofill_plan())
+    table = Table(box=None, header_style="dim")
+    for col in ("field", "value", "confidence"):
+        table.add_column(col)
+    for key, val in sorted(plan.values.items()):
+        table.add_row(key, val.value[:58], val.confidence)
+    console.print(table)
+    console.print(f"\n  [red]never filled[/red] [dim]({len(plan.reserved)}):[/dim] "
+                  + ", ".join(plan.reserved))
+
+
+async def _batch_overview(industry: str):
+    from .db import session_scope
+    from .pipeline.batch import batch_overview
+
+    async with session_scope() as s:
+        return await batch_overview(s, industry)
+
+
+async def _load_batch(industry: str, index: int):
+    from .db import session_scope
+    from .pipeline.batch import load_batch
+
+    async with session_scope() as s:
+        return await load_batch(s, industry=industry, index=index)
+
+
+async def _build_answer(opportunity_id: int, question: str, words: int):
+    from .db import session_scope
+    from .writing.answers import build_answer
+
+    async with session_scope() as s:
+        return await build_answer(s, opportunity_id, question, word_limit=words)
+
+
+async def _autofill_plan():
+    from .ats.autofill import build_plan
+    from .db import session_scope
+
+    async with session_scope() as s:
+        return await build_plan(s)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
