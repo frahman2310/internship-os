@@ -108,3 +108,34 @@ def test_voice_scanner_spares_finance_vocabulary():
 
     assert report("Benchmarked leverage multiples in leveraged finance")["strong"] == []
     assert any("delve" in h for h in report("Let us delve into the tapestry")["strong"])
+
+
+def test_corpus_never_whitelists_em_dash_from_ai_assisted_sample():
+    """The formal essay declares Claude editorial assistance and runs 12.6 em dashes per
+    1k words; the unassisted creative sample has zero. Treating the formal sample as
+    evidence of his voice would license the loudest AI tell using AI-written text."""
+    from internship_os.writing.corpus import NEVER_OVERRIDE, author_habits
+
+    habits = author_habits()
+    assert not any("em-dash" in h.lower() or "em dash" in h.lower() for h in habits)
+    for loud in ("delve", "tapestry", "leverage", "robust", "seamless"):
+        assert loud in NEVER_OVERRIDE
+        assert not any(loud == h.lower().strip() for h in habits)
+
+
+def test_voice_respects_his_own_habits_but_not_loud_tells():
+    from internship_os.writing.voice import report
+
+    his = "I actually just really wanted to explain what happened."
+    assert report(his)["strong"] == [] and report(his)["medium"] == []
+    assert len(report(his, respect_habits=False)["medium"]) > 0
+    loud = "We delve into a rich tapestry of seamless synergies."
+    assert len(report(loud)["strong"]) >= 2
+
+
+def test_marketplace_copy_is_tier_five():
+    from internship_os.research.sources.fetch import assign_tier
+
+    assert assign_tier("https://www.fiverr.com/x")[0] == 5
+    assert assign_tier("https://www.upwork.com/y")[0] == 5
+    assert assign_tier("https://www.reddit.com/r/z")[0] == 4

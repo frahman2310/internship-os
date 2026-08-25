@@ -33,6 +33,13 @@ TIER_4_DOMAINS = {
     "glassdoor.co.uk", "wallstreetoasis.com", "indeed.com", "fishbowlapp.com",
     "thestudentroom.co.uk", "quora.com",
 }
+# Freelance marketplaces. Gig copy from people SELLING application help is marketing, not
+# evidence: every listing claims insider knowledge and none of it is checkable. Useful only
+# as a hint about what the market believes, never citable on its own.
+TIER_5_DOMAINS = {
+    "fiverr.com", "www.fiverr.com", "upwork.com", "www.upwork.com",
+    "peopleperhour.com", "freelancer.com",
+}
 
 
 @dataclass
@@ -56,6 +63,8 @@ def assign_tier(url: str, company_domains: set[str] | None = None) -> tuple[int,
     dom = domain_of(url)
     if company_domains and any(dom.endswith(c) for c in company_domains if c):
         return 1, True
+    if any(dom.endswith(d.removeprefix("www.")) for d in TIER_5_DOMAINS):
+        return 5, False
     if any(dom.endswith(d.removeprefix("www.")) for d in TIER_4_DOMAINS):
         return 4, False
     if any(dom.endswith(d) for d in TIER_2_DOMAINS):

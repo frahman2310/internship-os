@@ -133,9 +133,19 @@ def rules() -> tuple[list[Rule], list[str]]:
     return literal, advisory
 
 
-def scan(text: str) -> list[Hit]:
-    """Every AI tell in the text, strongest first."""
+def scan(text: str, *, respect_habits: bool = True) -> list[Hit]:
+    """Every AI tell in the text, strongest first.
+
+    `respect_habits` drops rules that the user's own unassisted writing demonstrably uses —
+    the blacklist's stated caveat that a genuine authorial voice overrides a match. The
+    loudest tells are never overridden; see corpus.NEVER_OVERRIDE for why.
+    """
     literal, _ = rules()
+    if respect_habits:
+        from .corpus import author_habits
+
+        habits = author_habits()
+        literal = [r for r in literal if r.pattern not in habits]
     hits: list[Hit] = []
     exempt = {(m.start(), m.end()) for m in DOMAIN_EXCEPTIONS.finditer(text)}
     for rule in literal:
@@ -153,8 +163,8 @@ def em_dash_count(text: str) -> int:
     return text.count("—")
 
 
-def report(text: str) -> dict:
-    hits = scan(text)
+def report(text: str, *, respect_habits: bool = True) -> dict:
+    hits = scan(text, respect_habits=respect_habits)
     return {
         "strong": [str(h) for h in hits if h.severity == "Strong"],
         "medium": [str(h) for h in hits if h.severity != "Strong"],

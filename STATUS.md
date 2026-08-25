@@ -65,6 +65,26 @@ before he sees any draft. Domain exceptions stop it flagging real finance vocabu
 ("leverage multiples", "leveraged finance"). VOICE_DNA.md is deliberately NOT used for
 register — it was derived from confessional essays and is wrong for applications.
 
+## Voice, from his own corpus
+`var/corpus/` holds two graded samples. The creative essays are tier 1 (unassisted). The
+FINN1061 essay is **tier 3** — it declares Claude editorial assistance, so its surface
+habits are not evidence of his voice. That grading matters: the formal essay runs 12.6 em
+dashes per 1,000 words, his unassisted writing has **zero**. Whitelisting the em dash on
+the strength of an AI-assisted document would be circular.
+
+Only tier-1 evidence overrides a blacklist rule, and `corpus.NEVER_OVERRIDE` protects the
+loudest tells regardless — a reader who sees "delve" concludes AI whoever typed it, and he
+does use it naturally.
+
+## Research: application intelligence
+`research/application_intel.py` — 8 questions per employer with source-scoped queries
+(Reddit and WallStreetOasis for what applicants report, the employer's own site for stated
+requirements). Fiverr/Upwork are **tier 5**: gig copy from people selling application help
+is advertising, never citable alone. Survivorship stays capped at 0.40 by the existing
+confidence engine, because every "how I got in" post is written by someone who got in.
+
+**No LinkedIn automation.** Dropped at the user's instruction; the risk is his own account.
+
 ## Two invariants (structural, not advisory)
 1. A document version **cannot** reach `approved` while any generated span is
    `ungrounded`. Rephrasing evidence is allowed; inventing is unrepresentable.
