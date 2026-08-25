@@ -265,6 +265,18 @@ $("#pdfBtn").onclick = async () => {
   const r = await api("/api/compile", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(draft)});
   if(r.error){ status("compile failed"); $("#panel").innerHTML = '<div class="warn">'+r.error+'</div>'; return; }
   status(r.pages + (r.pages===1?" page":" pages") + (r.overfull?" · "+r.overfull+" overfull":""));
+  if(r.ats){
+    const p = $("#panel"); p.innerHTML = '<h2 style="margin-bottom:12px">ATS check</h2>';
+    r.ats.checks.forEach(c => {
+      const d = document.createElement("div"); d.className = "sugg";
+      const mark = c.passed ? "pass" : (c.severity==="warn" ? "warn" : "fail");
+      const col = c.passed ? "var(--ok)" : (c.severity==="warn" ? "var(--accent)" : "var(--flag)");
+      d.innerHTML = '<div class="why" style="color:'+col+'">'+mark+'</div>' +
+                    '<p style="margin:3px 0 0">'+c.name+'</p>' +
+                    '<div class="why" style="text-transform:none;letter-spacing:0">'+c.detail+'</div>';
+      p.append(d);
+    });
+  }
   const a = document.createElement("a"); a.href = r.url; a.download = draft.slug + ".pdf";
   document.body.append(a); a.click(); a.remove();
 };

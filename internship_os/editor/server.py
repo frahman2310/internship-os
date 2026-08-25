@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlparse
 
 from ..config import settings
 from ..documents.render import compile_pdf, esc, overfull_count, preamble
-from . import assist, store
+from . import assist, ats, store
 
 PAGE = Path(__file__).parent / "app.html"
 
@@ -31,10 +31,17 @@ def draft_to_latex(draft: store.Draft) -> str:
     # which is tuned for a lighter CV. Overriding here rather than in the template keeps
     # `doc build` output unchanged while letting a full page of real content fit.
     dense = "\n".join([
-        r"\geometry{margin=1.25cm}",
-        r"\titlespacing{\section}{0pt}{5pt}{2pt}",
-        r"\setlist[itemize]{leftmargin=1.15em, topsep=0pt, itemsep=0.8pt, parsep=0pt, before=\vspace{0.5pt}}",
-        r"\linespread{0.99}",
+        r"\geometry{top=1.0cm,bottom=1.0cm,left=1.15cm,right=1.15cm}",
+        # The reference CVs set section headings in full caps with a rule beneath, not
+        # small caps: "EDUCATION", "WORK EXPERIENCE". Match them exactly.
+        r"\titleformat{\section}{\bfseries\large}{}{0em}{\MakeUppercase}"
+        r"[\vspace{-6pt}\rule{\linewidth}{0.9pt}]",
+        r"\titlespacing{\section}{0pt}{6pt}{2.5pt}",
+        r"\setlist[itemize]{leftmargin=1.0em, topsep=0pt, itemsep=0.3pt, parsep=0pt, before=\vspace{0.2pt}}",
+        r"\linespread{0.95}",
+        # Organisation bold, role regular after an en-dash, dates bold hard right — the
+        # shape every one of the sample CVs uses.
+        r"\renewcommand{\entry}[3]{\needspace{2.5\baselineskip}\textbf{#1}\,#2\hfill\textbf{#3}\par\vspace{0.5pt}}",
     ])
     parts = [
         preamble(),
@@ -147,12 +154,15 @@ class Handler(BaseHTTPRequestHandler):
                 out_dir = Path(settings.artifacts_dir) / "editor"
                 pdf, log = compile_pdf(draft_to_latex(draft), out_dir, store.slugify(draft.slug))
                 pages = _page_count(pdf)
+                tex = draft_to_latex(draft)
+                report = ats.check_pdf(pdf, latex_source=tex, expected_pages=1)
                 self._json({
                     "ok": True,
                     "pages": pages,
                     "overfull": overfull_count(log),
                     "url": f"/api/pdf?slug={draft.slug}",
                     "path": str(pdf),
+                    "ats": report.to_json(),
                 })
             else:
                 self._json({"error": "not found"}, 404)
