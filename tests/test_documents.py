@@ -169,3 +169,25 @@ def test_hard_requirements_are_detected_when_the_model_calls_them_soft():
                for g in check_gates(reqs, graduation_year=2029) if "completion" in g.requirement)
     # The application cap is surfaced as a strategic constraint, not a pass.
     assert any("ONE-SHOT" in g.reason for g in check_gates(reqs, graduation_year=2028))
+
+
+def test_excluded_personal_topics_never_enter_the_evidence_store():
+    """the user excluded bereavement and political ambition. Enforced as a check rather than
+    a note, because the failure mode is a stale row surfacing in a drafted answer months
+    later, long after anyone remembers the instruction."""
+    import asyncio
+
+    from sqlalchemy import select
+
+    from internship_os.db import session_scope
+    from internship_os.models.candidate import EvidenceItem
+
+    FORBIDDEN = ("died", "death", "passed away", "bereave", "politician",
+                 "public service", "public servant", "bullied", "bullying")
+
+    async def check():
+        async with session_scope() as s:
+            rows = (await s.execute(select(EvidenceItem.text))).scalars().all()
+            return [t for t in rows if any(w in t.lower() for w in FORBIDDEN)]
+
+    assert asyncio.run(check()) == []
