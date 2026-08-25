@@ -139,3 +139,33 @@ def test_marketplace_copy_is_tier_five():
     assert assign_tier("https://www.fiverr.com/x")[0] == 5
     assert assign_tier("https://www.upwork.com/y")[0] == 5
     assert assign_tier("https://www.reddit.com/r/z")[0] == 4
+
+
+def test_hard_requirements_are_detected_when_the_model_calls_them_soft():
+    """The model marked "Candidates are required to be pursuing a degree completing
+    between June 2027 and July 2028" as soft. A missed hard gate lets an ineligible
+    application consume a slot, so wording is checked deterministically as a backstop."""
+    from internship_os.research.application_intel import (
+        Requirement, Requirements, check_gates, harden,
+    )
+
+    reqs = harden(Requirements(requirements=[
+        Requirement(text="Candidates are required to be pursuing a degree with a completion "
+                         "time frame between June 2027 and July 2028", kind="eligibility", hard=False),
+        Requirement(text="On track for a minimum 2:1 degree classification", kind="eligibility", hard=False),
+        Requirement(text="EMEA applicants are limited to 1 application per recruitment season",
+                    kind="eligibility", hard=False),
+        Requirement(text="Desired: A second European language.", kind="competency", hard=False),
+    ]))
+    assert [r.hard for r in reqs.requirements] == [True, True, True, False]
+
+    gates = {g.verdict for g in check_gates(reqs, graduation_year=2028)}
+    assert "fail" not in gates
+    # Graduating 2028 sits inside the stated 2027-2028 window.
+    assert any(g.verdict == "pass" and "2028" in g.reason
+               for g in check_gates(reqs, graduation_year=2028))
+    # Graduating 2029 does not.
+    assert any(g.verdict != "pass"
+               for g in check_gates(reqs, graduation_year=2029) if "completion" in g.requirement)
+    # The application cap is surfaced as a strategic constraint, not a pass.
+    assert any("ONE-SHOT" in g.reason for g in check_gates(reqs, graduation_year=2028))

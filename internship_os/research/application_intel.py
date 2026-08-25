@@ -16,6 +16,7 @@ Two honesty problems dominate, and both are handled as structure rather than war
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
@@ -92,6 +93,25 @@ class Requirements(BaseModel):
     deadline_note: str = Field(default="", description="Anything stated about timing")
 
 
+# Phrases that make a requirement disqualifying. The model under-calls `hard` — it marked
+# "Candidates are required to be pursuing a degree completing between June 2027 and July
+# 2028" as soft — and a missed hard gate is the expensive direction of that error: it lets
+# an ineligible application consume a slot in a batch.
+HARD_MARKERS = re.compile(
+    r"(?i)(required to be|are required|must be|must have|minimum of|on track for a minimum|"
+    r"must|limited to \d+ application|unable to apply|no deferral|"
+    r"eligibility criteria|you will need to be|only accept)"
+)
+
+
+def harden(requirements: "Requirements") -> "Requirements":
+    """Re-mark requirements the model called soft but whose wording disqualifies."""
+    for req in requirements.requirements:
+        if not req.hard and HARD_MARKERS.search(req.text):
+            req.hard = True
+    return requirements
+
+
 @dataclass
 class Gate:
     requirement: str
@@ -105,7 +125,7 @@ async def extract_requirements(page_text: str, company: str, role: str) -> Requi
     Deliberately extractive: a requirement invented here would silently reshape the whole
     application. If the page does not state something, it does not appear.
     """
-    return await call_schema(
+    result = await call_schema(
         f"Posting for {role} at {company}. Extract ONLY what this page states.\n\n"
         f"{page_text[:14000]}\n\n"
         "List every requirement, every document requested, and every free-text question "
@@ -114,34 +134,65 @@ async def extract_requirements(page_text: str, company: str, role: str) -> Requi
         Requirements, system="You extract application requirements from job postings.",
         purpose="intel:requirements", temperature=0.1, max_tokens=2600,
     )
+    return harden(result)
+
+
+def _years(text: str) -> list[int]:
+    return [int(y) for y in re.findall(r"\b(20\d{2})\b", text)]
 
 
 def check_gates(requirements: Requirements, *, graduation_year: int = 2028,
-                needs_sponsorship: bool = True) -> list[Gate]:
-    """Screen the hard requirements against fixed facts about the candidate.
+                classification: str = "2:1", needs_sponsorship: bool = True) -> list[Gate]:
+    """Screen hard requirements against fixed facts about the candidate.
 
-    Only the two that are mechanically checkable and most often disqualifying. Everything
-    else stays `unknown` rather than being guessed — a false `pass` here means a wasted
-    application, and a false `fail` means a missed one.
+    Only checks what can be decided mechanically. Everything else stays `unknown` rather
+    than guessed: a false `pass` wastes an application, a false `fail` loses one.
     """
     gates: list[Gate] = []
     for req in requirements.requirements:
         if not req.hard:
             continue
         low = req.text.lower()
-        if "graduat" in low or "final year" in low or "penultimate" in low:
-            if str(graduation_year) in low:
-                gates.append(Gate(req.text, "pass", f"graduation {graduation_year} named"))
+
+        # Graduation window. Employers rarely say "graduation" — Bank of America says
+        # "completion time frame between June 2027 and July 2028" — so match on the
+        # concept and read the year range out of the sentence.
+        if any(k in low for k in ("graduat", "completion", "final year", "penultimate",
+                                  "degree with a completion", "expected to complete")):
+            years = _years(req.text)
+            if len(years) >= 2 and min(years) <= graduation_year <= max(years):
+                gates.append(Gate(req.text, "pass",
+                                  f"graduates {graduation_year}, inside {min(years)}–{max(years)}"))
+            elif years and graduation_year not in years and len(years) == 1:
+                gates.append(Gate(req.text, "fail",
+                                  f"requires {years[0]}, candidate graduates {graduation_year}"))
             elif "penultimate" in low:
-                gates.append(Gate(req.text, "pass", "penultimate year matches 2026/27"))
+                gates.append(Gate(req.text, "pass", "penultimate year matches"))
             else:
-                gates.append(Gate(req.text, "unknown", "graduation window not stated clearly"))
+                gates.append(Gate(req.text, "unknown", "no parseable completion window"))
+
+        elif "2:1" in low or "2.1" in low or "upper second" in low or "first class" in low:
+            gates.append(Gate(req.text, "pass",
+                              f"on track for {classification} or above (First Class, Year 1)"))
+
         elif "sponsor" in low or "right to work" in low or "visa" in low:
-            if "cannot sponsor" in low or "unable to sponsor" in low or "no sponsorship" in low:
+            if any(k in low for k in ("cannot sponsor", "unable to sponsor", "no sponsorship",
+                                      "do not sponsor", "does not sponsor")):
                 gates.append(Gate(req.text, "fail" if needs_sponsorship else "pass",
                                   "employer states it does not sponsor"))
             else:
                 gates.append(Gate(req.text, "unknown", "sponsorship stance unclear"))
+
+        # Application caps are not pass/fail — they are a strategic constraint, and the
+        # most expensive one to discover after submitting.
+        elif re.search(r"limited to \d+ application|unable to apply to any additional", low):
+            n = re.search(r"limited to (\d+)", low)
+            gates.append(Gate(req.text, "unknown",
+                              f"ONE-SHOT: capped at {n.group(1) if n else 'a limited number of'} "
+                              "application(s) — choose the programme before applying"))
+
+        elif "available to join" in low or "must be available" in low:
+            gates.append(Gate(req.text, "pass", "summer 2027 availability assumed — confirm"))
         else:
             gates.append(Gate(req.text, "unknown", "needs a human read"))
     return gates
