@@ -38,6 +38,20 @@ TOPIC_HALF_LIFE = {
     "culture": 36,
     "hiring_bar": 36,
     "tech_stack": 36,
+    # Added with the application-intelligence topics. Market data is the shortest-lived
+    # thing here: quarterly spread and issuance figures are the numbers the user would assert
+    # in an interview, and a stale one is worse than none.
+    "market_backdrop": 3,
+    "deals": 6,
+    "league_table": 12,
+    "eligibility": 12,
+    "sponsorship": 12,
+    "deadline_behaviour": 12,
+    "questions": 12,
+    "verification": 12,
+    "division_detail": 24,
+    "success_factors": 24,
+    "rejection_factors": 24,
 }
 DEFAULT_HALF_LIFE = 18
 
@@ -90,7 +104,12 @@ def _months_since(as_of: str | None) -> float:
 
 
 def half_life(topic: str) -> int:
-    return TOPIC_HALF_LIFE.get(topic, DEFAULT_HALF_LIFE)
+    """Topics may be namespaced per employer ("rothschild:eligibility") when one research
+    run covers several firms. Match on the part after the colon, or an exact lookup would
+    silently drop every namespaced claim to the default and let market data sit fresh for
+    eighteen months."""
+    key = topic.split(":", 1)[-1].strip().lower()
+    return TOPIC_HALF_LIFE.get(key, TOPIC_HALF_LIFE.get(topic, DEFAULT_HALF_LIFE))
 
 
 def stale_after(topic: str, as_of: str) -> str:

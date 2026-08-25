@@ -208,3 +208,16 @@ def test_unrestricted_right_to_work_wording_fails_the_visa_gate():
     ]))
     assert [g.verdict for g in check_gates(reqs, needs_sponsorship=True)] == ["fail"]
     assert [g.verdict for g in check_gates(reqs, needs_sponsorship=False)] == ["pass"]
+
+
+def test_namespaced_topics_keep_their_half_life():
+    """A research run covering several firms namespaces topics ("rothschild:eligibility").
+    An exact dict lookup dropped every one of those to the 18-month default, which would
+    have left quarterly market data reading as fresh for a year and a half."""
+    from internship_os.research.confidence import half_life
+
+    assert half_life("blackrock:recent_news") == half_life("recent_news") == 6
+    assert half_life("rothschild:eligibility") == 12
+    # Market figures are the shortest-lived: they are what he would assert out loud.
+    assert half_life("market_backdrop") == 3
+    assert half_life("something_unmapped") == 18
