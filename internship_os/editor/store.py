@@ -63,6 +63,7 @@ class Draft:
     label: str
     name: str = ""
     contact: str = ""
+    style: str = "modern"  # "classic" = the Word/Times layout of the user's own CV
     sections: list[Section] = field(default_factory=list)
 
     def to_json(self) -> dict:
@@ -75,6 +76,7 @@ class Draft:
             label=data.get("label", data["slug"]),
             name=data.get("name", ""),
             contact=data.get("contact", ""),
+            style=data.get("style", "modern"),
             sections=[
                 Section(
                     title=s["title"],

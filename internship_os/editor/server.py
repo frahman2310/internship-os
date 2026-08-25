@@ -24,9 +24,96 @@ from . import assist, ats, store
 PAGE = Path(__file__).parent / "app.html"
 
 
+CLASSIC_PREAMBLE = r"""\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[top=0.85cm,bottom=0.85cm,left=1.2cm,right=1.2cm]{geometry}
+\usepackage{tgtermes}          % TeX Gyre Termes — metric-compatible with Times New Roman
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{needspace}
+\usepackage{microtype}
+\usepackage[colorlinks=true,urlcolor=blue,linkcolor=blue]{hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\renewcommand{\normalsize}{\fontsize{9.5}{10.6}\selectfont}
+\normalsize
+\linespread{1.0}
+\titleformat{\section}{\bfseries\normalsize}{}{0em}{\MakeUppercase}%
+  [\vspace{-7pt}\rule{\linewidth}{0.6pt}]
+\titlespacing{\section}{0pt}{3pt}{1pt}
+% Organisation bold left, dates bold hard right; the role sits on its own line beneath.
+\newcommand{\jobentry}[3]{\needspace{3\baselineskip}\textbf{#1}\hfill\textbf{#3}\par\textit{#2}\par}
+\newcommand{\eduentry}[3]{\needspace{3\baselineskip}\textbf{#1}\hfill\textbf{#3}\par#2\par}
+\setlist[itemize]{label=\textbullet, leftmargin=1.4em, topsep=0pt, itemsep=0pt, parsep=0pt, partopsep=0pt}
+"""
+
+
+def classic_latex(draft: store.Draft) -> str:
+    """Reproduce the Word/Times layout of the user's own CV, down to which words are bold.
+
+    Education sub-lines are upright and work sub-lines italic — that is how the source
+    document does it, and "match completely" means matching that too.
+    """
+    parts = [
+        CLASSIC_PREAMBLE,
+        r"\begin{document}",
+        r"\begin{center}",
+        f"  {{\\LARGE\\bfseries {esc(draft.name)}}}\\\\[2pt]",
+        f"  {contact_line(draft.contact)}",
+        r"\end{center}",
+        r"\vspace{-8pt}",
+    ]
+    for section in draft.sections:
+        entries = [e for e in section.entries if e.org or any(b.strip() for b in e.bullets)]
+        if not entries:
+            continue
+        parts.append(f"\\section{{{esc(section.title)}}}")
+        education = section.title.strip().lower().startswith("education")
+        for entry in entries:
+            if entry.org:
+                cmd = "eduentry" if education else "jobentry"
+                parts.append(
+                    f"\\{cmd}{{{esc(entry.org)}}}{{{esc(entry.role)}}}{{{esc(entry.dates)}}}"
+                )
+            bullets = [b for b in entry.bullets if b.strip()]
+            if not bullets:
+                continue
+            if entry.org:
+                parts.append(r"\begin{itemize}")
+                parts.extend(f"  \\item {esc(b.strip())}" for b in bullets)
+                parts.append(r"\end{itemize}")
+            else:
+                # Trailing blocks (OTHER ACTIVITIES) are bold label + upright text, no bullets.
+                for b in bullets:
+                    label, sep, rest = b.partition(":")
+                    parts.append(
+                        f"\\textbf{{{esc(label)}:}} {esc(rest.strip())}\\par" if sep
+                        else f"{esc(b)}\\par"
+                    )
+    parts.append(r"\end{document}")
+    return "\n".join(parts) + "\n"
+
+
+def contact_line(contact: str) -> str:
+    """Linkify the email and LinkedIn the way the source CV does, leaving the phone plain."""
+    out = []
+    for piece in [p.strip() for p in contact.split("|") if p.strip()]:
+        if "@" in piece:
+            out.append(f"\\href{{mailto:{piece}}}{{{esc(piece)}}}")
+        elif "linkedin" in piece.lower() or piece.startswith("www.") or "github" in piece.lower():
+            url = piece if piece.startswith("http") else f"https://{piece}"
+            out.append(f"\\href{{{url}}}{{{esc(piece)}}}")
+        else:
+            out.append(esc(piece))
+    return " \\textbar\\ ".join(out)
+
+
 def draft_to_latex(draft: store.Draft) -> str:
     """Render an edited draft with the same preamble the built CVs use, so what you see
     here is what a compiled application document looks like."""
+    if getattr(draft, "style", "modern") == "classic":
+        return classic_latex(draft)
     # The reference CVs (LSE, Columbia) run denser than the shared uk-1page template,
     # which is tuned for a lighter CV. Overriding here rather than in the template keeps
     # `doc build` output unchanged while letting a full page of real content fit.
