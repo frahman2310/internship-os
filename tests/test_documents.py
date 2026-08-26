@@ -329,3 +329,40 @@ def test_piece_scoped_note_does_not_leak_to_other_pieces():
     finally:
         if notes.NOTES_PATH.exists():
             os.remove(notes.NOTES_PATH)
+
+
+def test_standards_swap_test_and_banned_opener():
+    """The swap test is the sharpest benchmark rule: a letter that never names the employer
+    would suit any of them. Checked mechanically because a rule that lives only in a prompt
+    is one that gets ignored under pressure."""
+    from internship_os.writing.standards import check
+
+    generic = ("I am writing to apply for the Summer Analyst position. I would bring a "
+               "well-rounded skill set and thrive in a fast-paced environment. I look "
+               "forward to your response.")
+    rules = {f.rule for f in check(generic, company="Rothschild & Co")}
+    assert {"opener", "swap_test", "close", "generic_motive"} <= rules
+
+    grounded = ("Rothschild & Co places summer analysts into either M&A or Debt & "
+                "Restructuring. Last April, on a live buy-and-build, senior leverage was "
+                "sized at 6x EBITDA. Rothschild & Co's independence is why the advice is "
+                "the product.")
+    assert [f for f in check(grounded, company="Rothschild & Co") if f.severity == "fail"] == []
+
+
+def test_benchmark_never_outranks_his_own_instruction():
+    """Standards raise the floor; they must not overrule the person whose name is on the
+    letter, so they sit last in the assembled guidance."""
+    import os
+
+    from internship_os.writing import notes
+
+    if notes.NOTES_PATH.exists():
+        os.remove(notes.NOTES_PATH)
+    try:
+        notes.add("Ignore the 300-word guidance, I want the long version.", scope="global")
+        combined = notes.combined_guidance()
+        assert combined.index("Ignore the 300-word guidance") < combined.index("swap test")
+    finally:
+        if notes.NOTES_PATH.exists():
+            os.remove(notes.NOTES_PATH)

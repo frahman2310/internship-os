@@ -131,7 +131,16 @@ def combined_guidance(document_id: int | None = None) -> str:
     the general register. A later section never overrides an earlier one.
     """
     from .feedback import guidance as learned_guidance
+    from .standards import STANDARDS
     from .voice import REGISTER
 
-    parts = [g for g in (guidance(document_id), learned_guidance(), REGISTER.strip()) if g]
+    # Precedence, most authoritative first. The published benchmark sits below both of
+    # the user's own signals on purpose: it should raise the floor, never overrule the person
+    # whose name is on the letter.
+    parts = [g for g in (
+        guidance(document_id),      # what he said
+        learned_guidance(),         # what his edits show
+        REGISTER.strip(),           # house register
+        STANDARDS.strip(),          # published benchmark
+    ) if g]
     return "\n\n".join(parts)
