@@ -182,7 +182,10 @@ async def build_cover_letter(session: AsyncSession, opportunity_id: int) -> Cove
         f"[C{c.id}] {c.statement} (confidence {c.confidence:.2f})" for c in claim_rows
     ) or "(no verified research yet — do not speculate about this employer)"
 
+    from ..writing.notes import combined_guidance
+
     prompt = (
+        f"{combined_guidance()}\n\n"
         f"Candidate: {candidate.full_name}, {plan.education[0].organisation if plan.education else ''}\n"
         f"Applying for: {opp.title} at {company.name if company else ''}\n\n"
         f"EVIDENCE (use the numeric id, e.g. 12, in evidence_ids):\n{evidence_block}\n\n"

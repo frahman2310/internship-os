@@ -33,7 +33,8 @@ from ..models.candidate import Candidate, EvidenceItem
 from ..models.company import Company
 from ..models.opportunity import Opportunity
 from ..models.research import ResearchClaim
-from .voice import REGISTER, advisory_notes, report
+from .notes import combined_guidance
+from .voice import advisory_notes, report
 
 MAX_EVIDENCE = 24
 MAX_CLAIMS = 10
@@ -120,7 +121,10 @@ async def build_answer(
     question: str,
     *,
     word_limit: int | None = 250,
+    document_id: int | None = None,
 ) -> Answer:
+    """`document_id` scopes the guidance: notes the user wrote on THIS piece apply alongside
+    his global ones, so a correction made here is not lost the next time it is redrafted."""
     opp, company, candidate = await _context(session, opportunity_id)
     competency = classify(question)
     terms = tokenize(f"{question} {opp.title} {opp.industry or ''}")
@@ -160,7 +164,7 @@ async def build_answer(
         f"{limit_line}\n\n"
         f"EVIDENCE you may use (cite ids in evidence_ids):\n{ev_block}\n\n"
         f"RESEARCH on this employer (cite ids in claim_ids):\n{cl_block}\n\n"
-        f"{REGISTER}\n"
+        f"{combined_guidance(document_id)}\n"
         "Avoid these shapes, which read as machine-written:\n  - "
         + "\n  - ".join(advisory_notes(10))
         + "\n\nUse only what is above. State no number that is not in what you cite. "

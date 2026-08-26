@@ -284,3 +284,48 @@ def test_identical_save_is_not_recorded_as_an_edit():
 
     d = diff("Same text here.", "Same text here.")
     assert d.removed == [] and d.added == [] and d.length_delta == 0
+
+
+def test_guidance_precedence_puts_his_words_first():
+    """Order encodes precedence: what he said, then what his edits show, then house style.
+    A note must appear above the register, or the drafter can be talked out of an explicit
+    instruction by generic advice."""
+    import os
+
+    from internship_os.writing import feedback, notes
+
+    for path in (notes.NOTES_PATH, feedback.LEARNED_PATH):
+        if path.exists():
+            os.remove(path)
+    try:
+        notes.add("Never end on a summary line.", scope="global")
+        for _ in range(3):
+            feedback.record("I am passionate about this role and want to add value here.",
+                            "I built the model.")
+        combined = notes.combined_guidance()
+        i_note = combined.index("Never end on a summary line")
+        i_learned = combined.index("passionate")
+        i_register = combined.index("Write like a competent person")
+        assert i_note < i_learned < i_register
+    finally:
+        for path in (notes.NOTES_PATH, feedback.LEARNED_PATH):
+            if path.exists():
+                os.remove(path)
+
+
+def test_piece_scoped_note_does_not_leak_to_other_pieces():
+    import os
+
+    from internship_os.writing import notes
+
+    if notes.NOTES_PATH.exists():
+        os.remove(notes.NOTES_PATH)
+    try:
+        notes.add("Cut the closer here.", scope="piece", document_id=42)
+        notes.add("Never use exclamation marks.", scope="global")
+        assert "Cut the closer here." in notes.guidance(42)
+        assert "Cut the closer here." not in notes.guidance(99)
+        assert "exclamation" in notes.guidance(99)
+    finally:
+        if notes.NOTES_PATH.exists():
+            os.remove(notes.NOTES_PATH)
