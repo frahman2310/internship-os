@@ -251,7 +251,28 @@ def test_learning_loop_learns_style_words_not_grammar():
         assert "about" not in learned.dislikes
         assert "would" not in learned.dislikes
         rules = " ".join(learned.rules)
-        assert "passionate" in rules and "draft shorter" in rules
+        assert "passionate" in rules
+        # These edits average about five words shorter, below the eight-word threshold, so
+        # no length rule should fire yet — a small trim is not a stated preference.
+        assert "draft shorter" not in rules
+        assert -8 < learned.mean_length_delta < 0
+    finally:
+        if feedback.LEARNED_PATH.exists():
+            os.remove(feedback.LEARNED_PATH)
+
+
+def test_length_rule_fires_only_on_a_sustained_trim():
+    import os
+
+    from internship_os.writing import feedback
+
+    if feedback.LEARNED_PATH.exists():
+        os.remove(feedback.LEARNED_PATH)
+    try:
+        long_draft = " ".join(["word"] * 60) + " passionate."
+        for _ in range(3):
+            feedback.record(long_draft, "Short and direct.")
+        assert "draft shorter" in " ".join(feedback.load().rules)
     finally:
         if feedback.LEARNED_PATH.exists():
             os.remove(feedback.LEARNED_PATH)
