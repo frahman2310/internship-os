@@ -54,6 +54,17 @@
   .hint{font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
   .tell{font-family:var(--sans);font-size:11px;line-height:1.45;padding:5px 0;color:var(--flag)}
   .tell.med{color:var(--accent)}
+  .note{border-left:2px solid var(--accent);padding:7px 0 7px 10px;margin-bottom:11px;font-size:13px;line-height:1.5}
+  .note .q{font-style:italic;color:var(--ink-soft);font-size:12px;display:block;margin-bottom:3px}
+  .note .meta{font-family:var(--sans);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:#b0aa9c;margin-top:4px}
+  .note .meta a{color:#b0aa9c;cursor:pointer;text-decoration:none;border-bottom:1px solid transparent}
+  .note .meta a:hover{color:var(--flag);border-bottom-color:var(--flag)}
+  #noteBox{display:none;margin-top:10px}
+  #noteBox textarea{width:100%;min-height:66px;font-family:var(--serif);font-size:13px;line-height:1.5;
+    border:1px solid var(--rule);background:#fffdf9;padding:8px;outline:none;resize:vertical;color:var(--ink)}
+  #noteBox .row{display:flex;gap:14px;align-items:center;margin-top:7px}
+  #noteBox label{font-family:var(--sans);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+  #selQuote{font-style:italic;font-size:12px;color:var(--ink-soft);margin-bottom:6px;display:none}
   .ver{font-family:var(--sans);font-size:10.5px;letter-spacing:.04em;color:var(--ink-soft);padding:3px 0}
 </style>
 </head>
@@ -62,6 +73,7 @@
   <h1>Writing Library</h1>
   <nav>
     <a class="nav" href="/">CV editor</a>
+    <button id="noteBtn">Comment</button>
     <button id="scanBtn">Scan voice</button>
     <button id="saveBtn" class="primary">Save</button>
   </nav>
@@ -78,6 +90,17 @@
   <aside class="right">
     <h2>This piece</h2>
     <div id="metrics"></div>
+    <div id="noteBox">
+      <div id="selQuote"></div>
+      <textarea id="noteText" placeholder="What should the system do differently?"></textarea>
+      <div class="row">
+        <label><input type="checkbox" id="noteGlobal" checked> applies everywhere</label>
+        <button id="noteSave" class="primary">Add note</button>
+        <button id="noteCancel">Cancel</button>
+      </div>
+    </div>
+    <h2 style="margin-top:24px">Your notes</h2>
+    <div id="notes" class="hint">Select text in the draft and press <b>Comment</b>, or comment on the whole piece.</div>
     <h2 style="margin-top:24px">Learned from your edits</h2>
     <div id="learned" class="hint">No edits recorded yet. Every save teaches the system what you actually change.</div>
     <h2 style="margin-top:24px">Version history</h2>
@@ -182,7 +205,67 @@ $("#saveBtn").onclick = async () => {
   await load(); await learned(); await history();
 };
 
-load();
+
+let pendingQuote = "";
+
+function openNote(){
+  const ta = $("#text");
+  pendingQuote = ta.value.substring(ta.selectionStart, ta.selectionEnd).trim();
+  const q = $("#selQuote");
+  if(pendingQuote){ q.style.display="block"; q.textContent = '“'+pendingQuote.slice(0,160)+(pendingQuote.length>160?'…':'')+'”'; }
+  else { q.style.display="none"; }
+  $("#noteBox").style.display = "block";
+  $("#noteText").focus();
+}
+$("#noteBtn").onclick = openNote;
+$("#noteCancel").onclick = () => { $("#noteBox").style.display="none"; $("#noteText").value=""; pendingQuote=""; };
+
+$("#noteSave").onclick = async () => {
+  const text = $("#noteText").value.trim();
+  if(!text){ status("write the note first"); return; }
+  const global = $("#noteGlobal").checked;
+  const r = await api("/api/writing/note", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({text, quote: pendingQuote, scope: global ? "global" : "piece",
+      document_id: current ? current.document_id : null,
+      company: current ? current.company : "", kind: current ? current.kind : ""})});
+  if(r.error){ status("note failed"); return; }
+  $("#noteText").value = ""; pendingQuote = ""; $("#noteBox").style.display="none";
+  status(global ? "note saved — applies everywhere" : "note saved for this piece");
+  await renderNotes();
+};
+
+// Cmd/Ctrl+K comments on the current selection.
+document.addEventListener("keydown", e => {
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); openNote(); }
+});
+
+async function renderNotes(){
+  const id = current ? current.document_id : "";
+  const list = await api("/api/writing/notes?document_id="+(id||""));
+  const box = $("#notes");
+  if(!list.length){
+    box.className = "hint";
+    box.innerHTML = "Select text in the draft and press <b>Comment</b>, or comment on the whole piece.";
+    return;
+  }
+  box.className = "";
+  box.innerHTML = list.map(n => {
+    const q = n.quote ? '<span class="q">“'+n.quote.slice(0,120)+(n.quote.length>120?'…':'')+'”</span>' : "";
+    const scope = n.scope === "global" ? "everywhere" : (n.company || "this piece");
+    return '<div class="note">'+q+n.text+
+           '<div class="meta">'+scope+' · <a data-i="'+n.index+'">done</a></div></div>';
+  }).join("");
+  box.querySelectorAll("a[data-i]").forEach(a => a.onclick = async () => {
+    await api("/api/writing/note/resolve", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({index: parseInt(a.dataset.i,10)})});
+    await renderNotes();
+  });
+}
+
+const _open = open;
+open = function(p,g,node){ _open(p,g,node); renderNotes(); };
+
+load(); renderNotes();
 </script>
 </body>
 </html>

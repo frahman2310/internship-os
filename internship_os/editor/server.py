@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 from ..config import settings
 from ..documents.render import compile_pdf, esc, overfull_count, preamble
 from . import assist, ats, store
-from ..writing import feedback, pieces
+from ..writing import feedback, notes, pieces
 
 PAGE = Path(__file__).parent / "app.html"
 WRITING_PAGE = Path(__file__).parent / "writing.html"
@@ -201,6 +201,18 @@ class Handler(BaseHTTPRequestHandler):
                             "mean_length_delta": learned.mean_length_delta,
                             "dislikes": sorted(learned.dislikes.items(), key=lambda x: -x[1])[:25],
                             "prefers": sorted(learned.prefers.items(), key=lambda x: -x[1])[:25]})
+            elif route.path == "/api/writing/notes":
+                doc_id = (query.get("document_id") or [None])[0]
+                doc_id = int(doc_id) if doc_id not in (None, "", "null") else None
+                items = notes.all_notes()
+                self._json([
+                    {"index": i, **n.to_json()} for i, n in enumerate(items)
+                    if not n.resolved and (n.scope == "global" or n.document_id == doc_id)
+                ][::-1])
+            elif route.path == "/api/writing/guidance":
+                doc_id = (query.get("document_id") or [None])[0]
+                doc_id = int(doc_id) if doc_id not in (None, "", "null") else None
+                self._json({"guidance": notes.combined_guidance(doc_id)})
             elif route.path == "/api/writing/history":
                 doc_id = int((query.get("document_id") or ["0"])[0])
                 self._json(asyncio.run(_history(doc_id)))
@@ -228,7 +240,16 @@ class Handler(BaseHTTPRequestHandler):
         route = urlparse(self.path)
         try:
             body = self._body()
-            if route.path == "/api/writing/save":
+            if route.path == "/api/writing/note":
+                note = notes.add(
+                    body.get("text", ""), scope=body.get("scope", "global"),
+                    document_id=body.get("document_id"), quote=body.get("quote", ""),
+                    company=body.get("company", ""), kind=body.get("kind", ""),
+                )
+                self._json({"ok": True, "note": note.to_json()})
+            elif route.path == "/api/writing/note/resolve":
+                self._json({"ok": notes.resolve(int(body.get("index", -1)))})
+            elif route.path == "/api/writing/save":
                 self._json(asyncio.run(_save_piece(body)))
             elif route.path == "/api/writing/scan":
                 from ..writing.voice import report as voice_report
