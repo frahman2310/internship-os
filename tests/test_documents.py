@@ -221,3 +221,45 @@ def test_namespaced_topics_keep_their_half_life():
     # Market figures are the shortest-lived: they are what he would assert out loud.
     assert half_life("market_backdrop") == 3
     assert half_life("something_unmapped") == 18
+
+
+def test_learning_loop_learns_style_words_not_grammar():
+    """the user's edits are the training signal. The loop must learn that he deletes
+    "passionate" while ignoring "about", which merely rides along in every deleted clause."""
+    import os
+
+    from internship_os.writing import feedback
+
+    if feedback.LEARNED_PATH.exists():
+        os.remove(feedback.LEARNED_PATH)
+    try:
+        pairs = [
+            ("I am very passionate about finance and would really like to add value.",
+             "I want to work on live financing decisions."),
+            ("I am passionate about markets and would really like to contribute.",
+             "I want to build models that inform recommendations."),
+            ("I am passionate about this role and really believe I can add value.",
+             "I want to learn the work properly."),
+        ]
+        for before, after in pairs:
+            feedback.record(before, after)
+        learned = feedback.load()
+        assert learned.edits_seen == 3
+        assert learned.dislikes.get("passionate", 0) >= 3
+        assert learned.dislikes.get("really", 0) >= 3
+        # Grammar words must never become rules.
+        assert "about" not in learned.dislikes
+        assert "would" not in learned.dislikes
+        rules = " ".join(learned.rules)
+        assert "passionate" in rules and "draft shorter" in rules
+    finally:
+        if feedback.LEARNED_PATH.exists():
+            os.remove(feedback.LEARNED_PATH)
+
+
+def test_identical_save_is_not_recorded_as_an_edit():
+    """Re-saving unchanged text would teach the loop nothing and dilute real signal."""
+    from internship_os.writing.feedback import diff
+
+    d = diff("Same text here.", "Same text here.")
+    assert d.removed == [] and d.added == [] and d.length_delta == 0

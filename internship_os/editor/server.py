@@ -20,8 +20,10 @@ from urllib.parse import parse_qs, urlparse
 from ..config import settings
 from ..documents.render import compile_pdf, esc, overfull_count, preamble
 from . import assist, ats, store
+from ..writing import feedback, pieces
 
 PAGE = Path(__file__).parent / "app.html"
+WRITING_PAGE = Path(__file__).parent / "writing.html"
 
 
 CLASSIC_PREAMBLE = r"""\documentclass[10pt,a4paper]{article}
@@ -189,6 +191,19 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route.path in ("/", "/index.html"):
                 self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+            elif route.path in ("/writing", "/writing.html"):
+                self._send(200, WRITING_PAGE.read_bytes(), "text/html; charset=utf-8")
+            elif route.path == "/api/writing":
+                self._json(asyncio.run(_library()))
+            elif route.path == "/api/writing/learned":
+                learned = feedback.load()
+                self._json({"rules": learned.rules, "edits_seen": learned.edits_seen,
+                            "mean_length_delta": learned.mean_length_delta,
+                            "dislikes": sorted(learned.dislikes.items(), key=lambda x: -x[1])[:25],
+                            "prefers": sorted(learned.prefers.items(), key=lambda x: -x[1])[:25]})
+            elif route.path == "/api/writing/history":
+                doc_id = int((query.get("document_id") or ["0"])[0])
+                self._json(asyncio.run(_history(doc_id)))
             elif route.path == "/api/drafts":
                 self._json(store.list_drafts())
             elif route.path == "/api/draft":
@@ -213,7 +228,12 @@ class Handler(BaseHTTPRequestHandler):
         route = urlparse(self.path)
         try:
             body = self._body()
-            if route.path == "/api/draft":
+            if route.path == "/api/writing/save":
+                self._json(asyncio.run(_save_piece(body)))
+            elif route.path == "/api/writing/scan":
+                from ..writing.voice import report as voice_report
+                self._json(voice_report(body.get("text", "")))
+            elif route.path == "/api/draft":
                 draft = store.Draft.from_json(body)
                 store.save(draft)
                 self._json({"ok": True})
@@ -255,6 +275,54 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "not found"}, 404)
         except Exception as exc:
             self._json({"error": str(exc)}, 500)
+
+
+async def _library() -> list[dict]:
+    from ..db import session_scope
+
+    async with session_scope() as session:
+        return [
+            {"company": g.company, "role": g.role, "opportunity_id": g.opportunity_id,
+             "deadline": g.deadline, "pieces": [p.to_json() for p in g.pieces]}
+            for g in await pieces.library(session)
+        ]
+
+
+async def _history(document_id: int) -> list[dict]:
+    from ..db import session_scope
+
+    async with session_scope() as session:
+        rows = await pieces.versions_of(session, document_id)
+        return [{"version": v.version, "created_by": v.created_by,
+                 "created_at": v.created_at, "words": pieces.words(v.source_text or "")}
+                for v in rows]
+
+
+async def _save_piece(body: dict) -> dict:
+    """Save an edited piece AND fold the change into the learned voice.
+
+    The previous version is read before writing, so the diff is exactly what the user changed.
+    Recording happens only for user edits: learning from the machine's own output would
+    reinforce whatever it already does.
+    """
+    from ..db import session_scope
+
+    async with session_scope() as session:
+        before = ""
+        docs = await pieces.versions_of(session, int(body["document_id"]))
+        if docs:
+            before = docs[-1].source_text or ""
+        piece = await pieces.save_piece(
+            session,
+            opportunity_id=body.get("opportunity_id"),
+            kind=body["kind"], slug=body["slug"], title=body.get("title", ""),
+            text=body["text"], by_user=True,
+        )
+    rules = []
+    if before.strip() and before.strip() != body["text"].strip():
+        learned = feedback.record(before, body["text"])
+        rules = learned.rules[:6]
+    return {"ok": True, "version": piece.version, "words": piece.word_count, "rules": rules}
 
 
 def _page_count(pdf: Path) -> int:

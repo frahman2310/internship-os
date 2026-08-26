@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Writing Library</title>
+<style>
+  :root{
+    --paper:#faf8f4; --ink:#1a1a18; --ink-soft:#5c5952; --rule:#d9d4c9;
+    --accent:#5a3a2e; --flag:#8c2f2f; --ok:#3f5f43;
+    --serif:"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);
+       -webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:baseline;gap:26px;padding:18px 32px;
+         border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--paper);z-index:5}
+  h1{font-size:15px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;margin:0;font-family:var(--sans)}
+  nav{margin-left:auto;display:flex;gap:20px;align-items:baseline}
+  a.nav,button{font-family:var(--sans);font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+    background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px 0;text-decoration:none;
+    border-bottom:1px solid transparent;transition:color .18s,border-color .18s}
+  a.nav:hover,button:hover{color:var(--ink);border-bottom-color:var(--ink)}
+  button.primary{color:var(--accent)}
+  #status{font-family:var(--sans);font-size:11px;letter-spacing:.06em;color:var(--ink-soft);min-width:170px;text-align:right}
+
+  main{display:grid;grid-template-columns:290px minmax(0,1fr) 320px;align-items:start}
+  aside.left{border-right:1px solid var(--rule);height:calc(100vh - 57px);overflow-y:auto;padding:22px 20px}
+  aside.right{border-left:1px solid var(--rule);height:calc(100vh - 57px);overflow-y:auto;padding:24px 22px}
+  #doc{padding:34px 46px 120px;max-width:760px;margin:0 auto;width:100%}
+
+  .firm{margin-bottom:22px}
+  .firm-name{font-family:var(--sans);font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;
+    font-weight:600;border-bottom:1px solid var(--rule);padding-bottom:4px;margin-bottom:7px}
+  .firm-meta{font-family:var(--sans);font-size:10px;letter-spacing:.05em;color:#b0aa9c;float:right;text-transform:none}
+  .piece{font-size:13.5px;line-height:1.35;padding:5px 0 5px 9px;cursor:pointer;border-left:2px solid transparent;color:var(--ink-soft)}
+  .piece:hover{color:var(--ink)}
+  .piece.active{border-left-color:var(--accent);color:var(--ink);background:rgba(90,58,46,.05)}
+  .piece .k{font-family:var(--sans);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#b0aa9c;display:block}
+
+  #title{font-size:22px;font-weight:700;margin-bottom:2px}
+  #sub{font-family:var(--sans);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:18px}
+  #text{width:100%;min-height:60vh;border:none;outline:none;background:none;resize:none;
+    font-family:var(--serif);font-size:15px;line-height:1.62;color:var(--ink)}
+  .empty{color:#b0aa9c;font-size:14px;padding-top:60px;text-align:center}
+
+  aside.right h2{font-family:var(--sans);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:600;margin:0 0 11px}
+  .metric{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--rule)}
+  .metric span:last-child{font-family:var(--sans);font-size:11.5px;color:var(--ink-soft)}
+  .rule{font-size:12.5px;line-height:1.45;padding:7px 0;border-bottom:1px solid var(--rule);color:var(--ink-soft)}
+  .rule b{color:var(--ink);font-weight:600}
+  .hint{font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
+  .tell{font-family:var(--sans);font-size:11px;line-height:1.45;padding:5px 0;color:var(--flag)}
+  .tell.med{color:var(--accent)}
+  .ver{font-family:var(--sans);font-size:10.5px;letter-spacing:.04em;color:var(--ink-soft);padding:3px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Writing Library</h1>
+  <nav>
+    <a class="nav" href="/">CV editor</a>
+    <button id="scanBtn">Scan voice</button>
+    <button id="saveBtn" class="primary">Save</button>
+  </nav>
+  <span id="status"></span>
+</header>
+
+<main>
+  <aside class="left" id="list"></aside>
+  <div id="doc">
+    <div id="title"></div>
+    <div id="sub"></div>
+    <textarea id="text" spellcheck="true" placeholder="Select a piece on the left."></textarea>
+  </div>
+  <aside class="right">
+    <h2>This piece</h2>
+    <div id="metrics"></div>
+    <h2 style="margin-top:24px">Learned from your edits</h2>
+    <div id="learned" class="hint">No edits recorded yet. Every save teaches the system what you actually change.</div>
+    <h2 style="margin-top:24px">Version history</h2>
+    <div id="history" class="hint">—</div>
+  </aside>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let lib = [], current = null, original = "";
+const status = t => { $("#status").textContent = t; if(t) setTimeout(()=>{ if($("#status").textContent===t) $("#status").textContent=""; }, 3400); };
+const api = async (p,o) => (await fetch(p,o)).json();
+const words = t => (t.match(/\b[\w'-]+\b/g)||[]).length;
+
+async function load(){
+  lib = await api("/api/writing");
+  const host = $("#list"); host.innerHTML = "";
+  lib.forEach(g => {
+    const el = document.createElement("div"); el.className = "firm";
+    const nm = document.createElement("div"); nm.className = "firm-name";
+    nm.textContent = g.company;
+    const meta = document.createElement("span"); meta.className = "firm-meta";
+    meta.textContent = g.deadline || "rolling"; nm.append(meta);
+    el.append(nm);
+    g.pieces.forEach(p => {
+      const d = document.createElement("div"); d.className = "piece";
+      d.innerHTML = '<span class="k">'+p.kind.replace("_"," ")+' · v'+p.version+'</span>';
+      d.append(document.createTextNode(p.title));
+      d.onclick = () => open(p, g, d);
+      el.append(d);
+    });
+    host.append(el);
+  });
+  await learned();
+}
+
+function open(p, g, node){
+  document.querySelectorAll(".piece.active").forEach(e=>e.classList.remove("active"));
+  if(node) node.classList.add("active");
+  current = {...p, company: g.company, role: g.role};
+  original = p.text;
+  $("#title").textContent = p.title;
+  $("#sub").textContent = g.company + (g.role ? " · " + g.role : "");
+  $("#text").value = p.text;
+  metrics(); history();
+}
+
+function metrics(){
+  const t = $("#text").value;
+  const rows = [["Words", words(t)], ["Version", current ? "v"+current.version : "—"],
+                ["Kind", current ? current.kind.replace("_"," ") : "—"],
+                ["Changed", t.trim()===original.trim() ? "no" : "yes"]];
+  $("#metrics").innerHTML = rows.map(r=>'<div class="metric"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join("");
+}
+$("#text").addEventListener("input", metrics);
+
+async function history(){
+  if(!current){ $("#history").textContent="—"; return; }
+  const h = await api("/api/writing/history?document_id="+current.document_id);
+  $("#history").innerHTML = h.length
+    ? h.slice().reverse().map(v=>'<div class="ver">v'+v.version+' · '+v.created_by+' · '+v.words+'w</div>').join("")
+    : "—";
+}
+
+async function learned(){
+  const l = await api("/api/writing/learned");
+  const box = $("#learned");
+  if(!l.rules.length){
+    box.className = "hint";
+    box.textContent = l.edits_seen
+      ? l.edits_seen+" edit(s) recorded. Rules appear once a change repeats three times."
+      : "No edits recorded yet. Every save teaches the system what you actually change.";
+    return;
+  }
+  box.className = "";
+  box.innerHTML = '<div class="ver" style="margin-bottom:6px">'+l.edits_seen+' edits recorded</div>'
+    + l.rules.map(r=>'<div class="rule">'+r.replace(/'([^']+)'/g,'<b>$1</b>')+'</div>').join("");
+}
+
+$("#scanBtn").onclick = async () => {
+  const r = await api("/api/writing/scan", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({text: $("#text").value})});
+  const box = $("#metrics");
+  let html = '<div class="metric"><span>Em dashes</span><span>'+r.em_dashes+'</span></div>';
+  html += '<div class="metric"><span>Tells</span><span>'+(r.strong.length+r.medium.length)+'</span></div>';
+  r.strong.forEach(h => html += '<div class="tell">'+h+'</div>');
+  r.medium.forEach(h => html += '<div class="tell med">'+h+'</div>');
+  if(!r.strong.length && !r.medium.length) html += '<div class="tell" style="color:var(--ok)">clean</div>';
+  box.innerHTML = html;
+};
+
+$("#saveBtn").onclick = async () => {
+  if(!current){ status("nothing open"); return; }
+  const text = $("#text").value;
+  if(text.trim() === original.trim()){ status("no changes"); return; }
+  const r = await api("/api/writing/save", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({document_id: current.document_id, opportunity_id: current.opportunity_id,
+      kind: current.kind, slug: current.slug, title: current.title, text})});
+  if(r.error){ status("save failed"); return; }
+  status("saved v"+r.version+" · "+r.words+"w");
+  original = text;
+  await load(); await learned(); await history();
+};
+
+load();
+</script>
+</body>
+</html>
