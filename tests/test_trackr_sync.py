@@ -92,8 +92,10 @@ class TestStatusMapping:
     def test_only_submitted_counts_as_applied(self):
         """Drafting something is not applying for it — the remote board must not overstate."""
         assert STATUS_MAP["SUBMITTED"] == "Applied"
+        # Pre-submission states may read as "Interested", never as "Applied".
         for state in ("DRAFTING", "AWAITING_REVIEW", "APPROVED", "APPLYING"):
-            assert STATUS_MAP[state] == "Not Applied", state
+            assert STATUS_MAP[state] in ("Not Applied", "Interested"), state
+            assert STATUS_MAP[state] != "Applied", state
 
     def test_terminal_outcomes_map_honestly(self):
         assert STATUS_MAP["OFFER"] == "Offer"
@@ -111,3 +113,38 @@ class TestRecipePersistence:
         loaded = StatusRecipe.load()
         assert loaded is not None
         assert loaded.url == recipe.url and loaded.body == {"a": 1}
+
+
+class TestBakedInStatusGuard:
+    """A capture made before a label existed in STATUS_MAP leaves that label as a literal.
+    Replaying it would write the captured status onto every programme, silently."""
+
+    def _recipe(self, body):
+        from internship_os.sync.trackr_account import StatusRecipe
+        return StatusRecipe(
+            method="PUT",
+            url="https://api.the-trackr.com/programmes/update-status",
+            headers={},
+            body=body,
+            observed_at="2026-08-28T00:00:00Z",
+            note="test",
+        )
+
+    def test_refuses_to_rewrite_a_baked_in_status(self):
+        import pytest
+        from internship_os.sync.trackr_account import render
+        r = self._recipe({"programmeId": "{{PROGRAMME_ID}}", "status": "Interested"})
+        with pytest.raises(ValueError, match="baked in"):
+            render(r, "abc123", "Applied")
+
+    def test_allows_the_matching_status(self):
+        from internship_os.sync.trackr_account import render
+        r = self._recipe({"programmeId": "{{PROGRAMME_ID}}", "status": "Interested"})
+        _, body = render(r, "abc123", "Interested")
+        assert body == {"programmeId": "abc123", "status": "Interested"}
+
+    def test_a_tokenised_recipe_renders_any_status(self):
+        from internship_os.sync.trackr_account import render
+        r = self._recipe({"programmeId": "{{PROGRAMME_ID}}", "status": "{{STATUS}}"})
+        _, body = render(r, "abc123", "Applied")
+        assert body == {"programmeId": "abc123", "status": "Applied"}

@@ -40,13 +40,15 @@ API_HOST = "api.the-trackr.com"
 # Local pipeline state -> the vocabulary Trackr's own UI uses.
 STATUS_MAP = {
     "DISCOVERED": "Not Applied",
-    "QUALIFIED": "Not Applied",
-    "RESEARCHING": "Not Applied",
-    "READY_TO_APPLY": "Not Applied",
-    "DRAFTING": "Not Applied",
-    "AWAITING_REVIEW": "Not Applied",
-    "APPROVED": "Not Applied",
-    "APPLYING": "Not Applied",
+    # Trackr's own vocabulary gained "Interested" — everything past triage but before a
+    # submission is exactly that, and it is what the user sets by hand.
+    "QUALIFIED": "Interested",
+    "RESEARCHING": "Interested",
+    "READY_TO_APPLY": "Interested",
+    "DRAFTING": "Interested",
+    "AWAITING_REVIEW": "Interested",
+    "APPROVED": "Interested",
+    "APPLYING": "Interested",
     "SUBMITTED": "Applied",
     "ASSESSMENT": "Interview",
     "INTERVIEW": "Interview",
@@ -154,6 +156,18 @@ def render(recipe: StatusRecipe, programme_id: str, status_label: str) -> tuple[
             "the captured request has no programme placeholder — re-run `trackr capture` "
             "and change the status of a programme this system already knows about"
         )
+    # A capture made before a label was in STATUS_MAP leaves that label baked in as a
+    # literal. Replaying it would then write the captured status onto every programme,
+    # silently and wrongly. Refuse rather than send.
+    if STATUS_TOKEN not in recipe.url and STATUS_TOKEN not in body_json:
+        for known in sorted(set(STATUS_MAP.values()), key=len, reverse=True):
+            if known in recipe.url or known in body_json:
+                if known != status_label:
+                    raise ValueError(
+                        f"the captured request has {known!r} baked in and cannot be "
+                        f"rewritten to {status_label!r} — re-run `trackr capture`"
+                    )
+                break
     url = recipe.url.replace(PROGRAMME_TOKEN, programme_id).replace(
         STATUS_TOKEN, status_label
     )
