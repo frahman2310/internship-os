@@ -507,3 +507,31 @@ def test_uncited_but_factual_paragraphs_are_recovered_not_discarded():
     # Nor can a paragraph with nothing checkable in it.
     vague = Paragraph(text="I am a diligent and analytical person.")
     assert audit(vague, evidence, {}).grounding == "ungrounded"
+
+
+def test_swap_test_matches_the_distinctive_word_not_the_legal_name():
+    """Three correctly-written answers were flagged generic because the checker looked for
+    "Qatalyst Partners" when the prose said "Qatalyst". Suffixes like Partners, Capital and
+    Sachs are shared across firms and carry no identifying force."""
+    from internship_os.writing.standards import check
+
+    named = ("Qatalyst advises technology companies exclusively. Qatalyst is where I want "
+             "to learn this, having built 3 products.")
+    assert [f.rule for f in check(named, company="Qatalyst Partners", competency="why_firm")
+            if f.severity == "fail"] == []
+
+    generic = "A letter naming nobody at all, with 5 things in it."
+    assert "swap_test" in {f.rule for f in check(generic, company="Qatalyst Partners",
+                                                 competency="why_firm")}
+
+
+def test_commercial_awareness_answers_need_not_name_the_firm():
+    """"Name a news item that drove the markets" is about the world, not the employer.
+    Forcing the firm's name in produces the contrived sentence the swap test exists to stop."""
+    from internship_os.writing.answers import classify
+    from internship_os.writing.standards import check
+
+    answer = "An inflation print that surprises against consensus shifts the expected path."
+    competency = classify("Please name a news item that has recently driven the financial markets?")
+    assert "swap_test" not in {f.rule for f in check(answer, company="IMC Trading",
+                                                     competency=competency)}

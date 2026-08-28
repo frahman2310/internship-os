@@ -150,7 +150,11 @@ GENERIC_MOTIVE = re.compile(
 # you worked in a team" — a competency answer is about the candidate, and naming the
 # employer inside it would read as forced. Applying the test everywhere produced four false
 # failures on the user's Bank of America answers.
-FIRM_SPECIFIC_COMPETENCIES = {"why_firm", "why_role", "commercial", "cover_letter"}
+# Commercial-awareness questions were originally in this set and should not be. "Name a
+# news item that has recently driven the financial markets" and "describe a technology
+# trend you have followed" are about the world, not the employer, and forcing the firm's
+# name into them produces exactly the contrived sentence the swap test exists to prevent.
+FIRM_SPECIFIC_COMPETENCIES = {"why_firm", "why_role", "cover_letter"}
 
 
 def swap_test_applies(competency: str) -> bool:
@@ -182,7 +186,15 @@ def check(text: str, *, company: str = "", track: str = "finance",
     # The swap test, mechanised: a letter with no mention of the employer is generic by
     # construction. Naming them once is necessary, not sufficient.
     if company and swap_test_applies(competency):
-        stem = re.split(r"\s*(?:&|and)\s*", company)[0].strip().rstrip(".,")
+        # Match the distinctive first word, not the full legal name. An answer that says
+        # "Qatalyst" is naming the firm; requiring "Qatalyst Partners" flagged three
+        # correctly-written answers as generic. Suffixes like Partners, Capital, Group and
+        # Management are shared across firms and carry no identifying force.
+        SUFFIXES = {"partners", "capital", "group", "management", "co", "co.", "llp",
+                    "ltd", "limited", "plc", "inc", "international", "securities",
+                    "investments", "investment", "trading", "sachs", "holdings"}
+        parts = [w.strip(".,&") for w in re.split(r"\s+", company) if w.strip(".,&")]
+        stem = next((w for w in parts if w.lower() not in SUFFIXES), parts[0] if parts else "")
         if stem and stem.lower() not in text.lower():
             out.append(Finding("swap_test", f"never names {company} — would suit any firm"))
         elif len(re.findall(re.escape(stem), text, re.I)) < 2:
