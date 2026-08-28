@@ -276,3 +276,50 @@ async def capture_status_call(timeout_ms: int = 300_000) -> StatusRecipe | None:
         await context.close()
 
     return captured[-1] if captured else None
+
+
+# --- automatic mirroring ------------------------------------------------------------
+
+async def enqueue(session, opp, status_label: str) -> bool:
+    """Push one status change to Trackr, recording the outcome on the opportunity.
+
+    Called from the state machine after a successful local transition. Returns True only
+    when Trackr accepted the write. Any failure is recorded and swallowed: the local state
+    has already changed and is authoritative, so a mirror that is briefly behind is a far
+    better outcome than a transition that fails because somebody else's server is down.
+    """
+    programme_id = str((opp.raw_payload or {}).get("id") or opp.source_ref or "").strip()
+    if not programme_id:
+        return False
+    try:
+        code, body = await push_status(programme_id, status_label)
+    except Exception as exc:  # noqa: BLE001
+        _record(opp, f"error {type(exc).__name__}", status_label)
+        return False
+    ok = 200 <= code < 300
+    _record(opp, f"HTTP {code}" + ("" if ok else f" {body[:80]}"), status_label)
+    return ok
+
+
+def _record(opp, outcome: str, status_label: str) -> None:
+    payload = dict(opp.raw_payload or {})
+    payload["_trackr_sync"] = {
+        "status": status_label,
+        "outcome": outcome,
+        "at": __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
+    }
+    opp.raw_payload = payload
+
+
+def sync_state() -> dict:
+    """Whether automatic mirroring is armed, for `doctor` and the CLI to report honestly."""
+    recipe = StatusRecipe.load()
+    return {
+        "armed": recipe is not None,
+        "recipe_path": str(recipe_path()),
+        "observed_at": getattr(recipe, "observed_at", None),
+        "reason": None if recipe else (
+            "no status-write recipe captured yet — run `ios trackr capture`, change one "
+            "status in the Trackr UI, and the exact call is recorded"),
+    }

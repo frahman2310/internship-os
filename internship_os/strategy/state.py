@@ -149,4 +149,27 @@ async def transition(
             event_metadata=metadata,
         )
     )
+    await _queue_trackr_sync(session, opp, to_state)
     return opp
+
+
+async def _queue_trackr_sync(session: AsyncSession, opp, to_state: str) -> None:
+    """Mirror the new state onto the user's real Trackr board.
+
+    Best effort by construction. Trackr is one unofficial API on somebody else's server,
+    and a failure there must never roll back a local state change or raise into the
+    caller: the local record is the source of truth, and the mirror catches up later.
+
+    Does nothing until a status-write recipe has been captured, because the payload shape
+    is not discoverable from the bundle and guessing it would mean firing writes of unknown
+    shape at his live account.
+    """
+    try:
+        from ..sync.trackr_account import STATUS_MAP, StatusRecipe, enqueue
+
+        label = STATUS_MAP.get(to_state)
+        if not label or StatusRecipe.load() is None:
+            return
+        await enqueue(session, opp, label)
+    except Exception:  # noqa: BLE001 - a mirror must not break the writer
+        return
