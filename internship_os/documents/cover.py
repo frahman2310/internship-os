@@ -100,6 +100,28 @@ def numbers_in(text: str) -> set[str]:
     return out
 
 
+def _recover_citations(text: str, evidence: dict[int, str]) -> list[int]:
+    """Attribute an uncited paragraph to evidence, or return nothing.
+
+    Succeeds only when EVERY number in the paragraph is present in the evidence pool, so a
+    paragraph carrying an invented figure can never be recovered this way. A paragraph with
+    no numbers at all is not recovered either: without a figure to check there is nothing to
+    verify, and waving it through would defeat the audit.
+    """
+    numbers = numbers_in(text)
+    if not numbers:
+        return []
+    pool = {i: numbers_in(t) for i, t in evidence.items()}
+    matched: list[int] = []
+    for want in numbers:
+        holder = next((i for i, nums in pool.items() if want in nums), None)
+        if holder is None:
+            return []            # a number nothing supports: not recoverable
+        if holder not in matched:
+            matched.append(holder)
+    return matched
+
+
 def audit(
     paragraph: Paragraph,
     evidence: dict[int, str],
@@ -121,6 +143,18 @@ def audit(
             f"cites id(s) that were never provided: {invented}", None,
         )
     if not cited_ev and not cited_cl:
+        # The model sometimes writes a perfectly sourced paragraph and simply fails to
+        # return the ids. Treating that as fabrication throws away good work for a
+        # bookkeeping error, so fall back to verifying the substance: if every number in
+        # the paragraph appears in the evidence offered, the facts are real even though
+        # the citation is missing. It is recorded as `reframed`, never `grounded`, because
+        # unverified attribution is a weaker claim than a cited one.
+        recovered = _recover_citations(paragraph.text, evidence)
+        if recovered:
+            return AuditedParagraph(
+                paragraph.text, "reframed",
+                f"no citation returned; facts verified against evidence {recovered}",
+                recovered[0])
         return AuditedParagraph(
             paragraph.text, "ungrounded", "cites no evidence or research", None
         )

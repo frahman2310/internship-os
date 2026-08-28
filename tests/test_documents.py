@@ -482,3 +482,28 @@ def test_reframe_allows_the_employers_own_name():
     after = "At Bank of America I would build models, as I did at Grant Thornton."
     allowed = {w for w in re.findall(r"[A-Za-z&'.\-]{2,}", "Bank of America")}
     assert named_entities(after) - named_entities(before) - allowed == set()
+
+
+def test_uncited_but_factual_paragraphs_are_recovered_not_discarded():
+    """The drafter sometimes writes a properly sourced paragraph and fails to return the
+    citation ids. Treating that as fabrication threw away two good Ares and Capula answers
+    over a bookkeeping error, so the substance is verified instead: every number must exist
+    in the evidence pool. It is recorded as reframed, never grounded."""
+    from internship_os.documents.cover import Paragraph, audit
+
+    evidence = {
+        1: "oversaw an $8,000 operating budget and delivered $1,000 net profit",
+        2: "coordinating 100+ frontline staff across logistics",
+        3: "automated ~65% of the LP report-generation process",
+    }
+    sourced = Paragraph(text="I ran an $8,000 budget to $1,000 profit, directed 100 staff, "
+                             "and automated 65% of a reporting cycle.")
+    assert audit(sourced, evidence, {}).grounding == "reframed"
+
+    # An invented figure can never be recovered this way.
+    invented = Paragraph(text="I managed a $50,000 budget and grew revenue 300%.")
+    assert audit(invented, evidence, {}).grounding == "ungrounded"
+
+    # Nor can a paragraph with nothing checkable in it.
+    vague = Paragraph(text="I am a diligent and analytical person.")
+    assert audit(vague, evidence, {}).grounding == "ungrounded"
