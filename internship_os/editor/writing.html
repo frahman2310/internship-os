@@ -65,6 +65,16 @@
   .rulei .meta{font-family:var(--sans);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:#b0aa9c;margin-top:3px}
   .rulei .meta a{color:#b0aa9c;cursor:pointer;text-decoration:none}
   .rulei .meta a:hover{color:var(--flag)}
+  #reframeBar{display:none;padding:9px 46px;border-bottom:1px solid var(--rule);
+    background:#f4efe6;font-family:var(--sans);font-size:11.5px;letter-spacing:.04em;
+    display:none;align-items:center;gap:18px}
+  #reframeBar.on{display:flex}
+  #reframeBar .msg{color:var(--ink-soft)}
+  #reframeBar .bad{color:var(--flag);font-weight:600}
+  #reframeBar a{color:var(--accent);cursor:pointer;text-transform:uppercase;letter-spacing:.09em;
+    border-bottom:1px solid var(--accent);text-decoration:none}
+  #reframeBar a.discard{color:var(--ink-soft);border-bottom-color:var(--ink-soft)}
+  .chg{font-size:12.5px;line-height:1.45;padding:5px 0;border-bottom:1px solid var(--rule);color:var(--ink-soft)}
   #noteBox{display:none;margin-top:10px}
   #noteBox textarea{width:100%;min-height:66px;font-family:var(--serif);font-size:13px;line-height:1.5;
     border:1px solid var(--rule);background:#fffdf9;padding:8px;outline:none;resize:vertical;color:var(--ink)}
@@ -80,11 +90,15 @@
   <nav>
     <a class="nav" href="/">CV editor</a>
     <button id="noteBtn">Comment</button>
+    <button id="reframeBtn">Reframe</button>
     <button id="scanBtn">Scan voice</button>
     <button id="saveBtn" class="primary">Save</button>
   </nav>
   <span id="status"></span>
 </header>
+
+<div id="reframeBar"><span class="msg" id="reframeMsg"></span>
+  <a id="reframeAccept">Accept</a><a id="reframeDiscard" class="discard">Discard</a></div>
 
 <main>
   <aside class="left" id="list"></aside>
@@ -309,6 +323,51 @@ async function renderNotes(){
 
 const _open = open;
 open = function(p,g,node){ _open(p,g,node); renderNotes(); };
+
+
+let reframeOriginal = null;
+
+$("#reframeBtn").onclick = async () => {
+  if(!current){ status("open a piece first"); return; }
+  status("reframing against your rules…");
+  const r = await api("/api/writing/reframe", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({text: $("#text").value, document_id: current.document_id,
+      kind: current.kind, company: current.company, title: current.title})});
+  if(r.error){ status("reframe failed"); $("#metrics").innerHTML = '<div class="tell">'+r.error+'</div>'; return; }
+
+  reframeOriginal = $("#text").value;
+  $("#text").value = r.text;
+  metrics();
+
+  const bar = $("#reframeBar"); bar.classList.add("on");
+  let msg = "";
+  if(!r.safe){
+    const bits = [];
+    if(r.invented_numbers.length) bits.push("numbers not in the original: "+r.invented_numbers.join(", "));
+    if(r.invented_entities.length) bits.push("names not in the original: "+r.invented_entities.join(", "));
+    msg = '<span class="bad">Rejected — '+bits.join("; ")+'</span>';
+  } else {
+    msg = "Fixed " + (r.findings_before.length - r.findings_after.length) + " of "
+        + r.findings_before.length + " issues · " + r.findings_after.length + " remaining · "
+        + r.tells_after + " AI tells";
+  }
+  $("#reframeMsg").innerHTML = msg;
+  $("#metrics").innerHTML = (r.changes||[]).map(c=>'<div class="chg">'+c+'</div>').join("")
+    + (r.findings_after||[]).map(f=>'<div class="tell med">'+f+'</div>').join("");
+  status("review the rewrite, then accept or discard");
+};
+
+$("#reframeAccept").onclick = async () => {
+  $("#reframeBar").classList.remove("on");
+  reframeOriginal = null;
+  await $("#saveBtn").onclick();
+};
+$("#reframeDiscard").onclick = () => {
+  if(reframeOriginal !== null){ $("#text").value = reframeOriginal; metrics(); }
+  $("#reframeBar").classList.remove("on");
+  reframeOriginal = null;
+  status("reframe discarded");
+};
 
 load(); renderNotes();
 </script>

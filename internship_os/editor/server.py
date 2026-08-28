@@ -240,7 +240,9 @@ class Handler(BaseHTTPRequestHandler):
         route = urlparse(self.path)
         try:
             body = self._body()
-            if route.path == "/api/writing/note":
+            if route.path == "/api/writing/reframe":
+                self._json(asyncio.run(_reframe(body)))
+            elif route.path == "/api/writing/note":
                 note = notes.add(
                     body.get("text", ""), scope=body.get("scope", "global"),
                     document_id=body.get("document_id"), quote=body.get("quote", ""),
@@ -310,6 +312,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "not found"}, 404)
         except Exception as exc:
             self._json({"error": str(exc)}, 500)
+
+
+async def _reframe(body: dict) -> dict:
+    """Regenerate a piece against every accumulated rule. Returns a proposal only: nothing
+    is written until the user accepts it, because a rewrite he has not read is precisely what
+    the review gate exists to stop."""
+    from ..writing.answers import classify
+    from ..writing.reframe import reframe
+
+    kind = body.get("kind", "cover_letter")
+    competency = "cover_letter" if kind == "cover_letter" else classify(body.get("title", ""))
+    result = await reframe(
+        body.get("text", ""), document_id=body.get("document_id"), kind=kind,
+        company=body.get("company", ""), title=body.get("title", ""), competency=competency,
+    )
+    return result.to_json()
 
 
 async def _library() -> list[dict]:

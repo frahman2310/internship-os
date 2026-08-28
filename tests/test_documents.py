@@ -445,3 +445,40 @@ def test_flow_check_catches_both_choppy_and_overlong():
 
     overlong = (" ".join(["word"] * 45) + ". ") * 6
     assert "flow" in {f.rule for f in check(overlong, competency="strength")}
+
+
+def test_reframe_entity_guard_ignores_sentence_starts():
+    """A capital at the start of a sentence is grammar, not a name. An early version
+    flagged "Executing" as an invented entity and blocked an otherwise clean reframe."""
+    from internship_os.writing.reframe import named_entities
+
+    before = "I built models at Grant Thornton. It worked."
+    gerund = "I built models at Grant Thornton. Executing them taught me a lot."
+    assert named_entities(gerund) - named_entities(before) == set()
+
+    # A firm appearing from nowhere is still caught.
+    invented = "I built models at Grant Thornton and Goldman Sachs."
+    assert {"Goldman", "Sachs"} <= named_entities(invented) - named_entities(before)
+
+
+def test_reframe_result_is_a_proposal_not_a_save():
+    """Nothing is written until the user accepts: the result object carries the original so a
+    discard restores it, and exposes its own safety verdict."""
+    from internship_os.writing.reframe import ReframeResult
+
+    r = ReframeResult(original="before", text="after", invented_numbers=["25%"])
+    assert not r.safe and r.original == "before"
+    assert ReframeResult(original="a", text="b").safe
+
+
+def test_reframe_allows_the_employers_own_name():
+    """Naming Bank of America inside a Bank of America answer is adding context, not
+    inventing a fact, and the swap test elsewhere actively wants it there."""
+    import re
+
+    from internship_os.writing.reframe import named_entities
+
+    before = "I built models at Grant Thornton."
+    after = "At Bank of America I would build models, as I did at Grant Thornton."
+    allowed = {w for w in re.findall(r"[A-Za-z&'.\-]{2,}", "Bank of America")}
+    assert named_entities(after) - named_entities(before) - allowed == set()
