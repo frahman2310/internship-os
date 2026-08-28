@@ -414,3 +414,34 @@ def test_a_single_edit_now_produces_a_rule():
     finally:
         if feedback.LEARNED_PATH.exists():
             os.remove(feedback.LEARNED_PATH)
+
+
+def test_user_standing_rules_are_enforced_mechanically():
+    """His rules came as corrections on real drafts, so they live in code rather than only
+    in a notes file that could be cleared. Each check below caused a real failure in the
+    Bank of America answers before it existed."""
+    from internship_os.writing.standards import check
+
+    dash = "He built the model — quickly, and well, across several long working weeks."
+    assert "dashes" in {f.rule for f in check(dash, competency="strength")}
+
+    meta = "Three, in the order I would defend them, are analysis, initiative and delivery."
+    assert "meta_structure" in {f.rule for f in check(meta, competency="strength")}
+
+    hedge = "Leveraged Finance, though I know placement follows selection and I would take any."
+    assert "hedging" in {f.rule for f in check(hedge, competency="strength")}
+
+    heading = "**Analytical work with a decision attached.** I have built valuation models."
+    assert "fragmented" in {f.rule for f in check(heading, competency="strength")}
+
+
+def test_flow_check_catches_both_choppy_and_overlong():
+    """The complaint was choppiness, and over-correcting it is the obvious failure: the
+    rewritten answers first came back at a 40-word mean, which is unreadable."""
+    from internship_os.writing.standards import check
+
+    choppy = " ".join(["He built it. It worked. She agreed. They shipped. It sold. He left."] * 2)
+    assert "flow" in {f.rule for f in check(choppy, competency="strength")}
+
+    overlong = (" ".join(["word"] * 45) + ". ") * 6
+    assert "flow" in {f.rule for f in check(overlong, competency="strength")}

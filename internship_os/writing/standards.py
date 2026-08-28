@@ -76,6 +76,46 @@ Cover letters must be written as LETTERS, following Morgan Stanley's published g
 LETTER_MODE_EXEMPT = {"close"}
 
 
+# the user's own standing rules, given as corrections on real drafts. These are permanent and
+# outrank every other source here, so they live in code rather than only in the notes file:
+# a rule that can be deleted by clearing a JSON file is not a rule.
+#
+# Calibration note: his own formal writing averages 23.1 words per sentence. The answers
+# he called "small awkward sentences" measured 16.4. That gap is what the flow check below
+# is measuring, rather than a stylistic opinion.
+HOUSE_RULES = """
+the user's standing rules. These are absolute and override every other instruction here:
+  * NEVER use an em dash or an en dash. Use a comma. This has no exceptions.
+  * Write in flowing paragraphs. No bold sub-headings inside an answer, no fragment lists,
+    no one-line paragraphs. Sentences should run long and connect to each other; his own
+    formal writing averages about 23 words a sentence and the prose should sit near that.
+  * Never comment on your own structure. "Three, in the order I would defend them" and
+    anything like it is banned.
+  * Never hedge or pre-concede. "though I know placement follows selection and I would take
+    any of the four" is exactly the move to avoid. State the preference and stop.
+  * Do not restate the CV. The reader has it. Add what it cannot carry.
+  * These are business answers. Be clear, be concrete, and do not be dramatic. Keep some
+    feeling, but far less than a personal essay would carry.
+  * Answer the question that was asked, completely and directly.
+  * No decorative white space, no gratuitous line breaks inside an answer.
+"""
+
+# Rules that can be checked mechanically. Everything above that cannot be is prompt text.
+DASHES = re.compile(r"[\u2013\u2014]")
+META_STRUCTURE = re.compile(
+    r"(?i)(\b(three|two|four)\s*,\s*in (the )?order\b|in the order I would|"
+    r"\bfirst(ly)?,? .{0,40}\bsecond(ly)?\b.{0,40}\bthird(ly)?\b|"
+    r"\bin this (answer|letter) I will\b|\bI will now\b|\bto summarise\b)")
+HEDGE = re.compile(
+    r"(?i)(though I know|although I know|I would take any|I would be (glad|happy) of any|"
+    r"I appreciate that I|I realise (that )?I (only|just)|I am aware (that )?I lack|"
+    r"despite (my )?limited|even though I have (only|just))")
+BOLD_HEADING = re.compile(r"^\s*\*\*[^*\n]{2,80}\*\*", re.M)  # bold used as a run-in heading
+MIN_MEAN_SENTENCE = 18.0     # his formal register sits at 23.1; below 18 reads as choppy
+MAX_MEAN_SENTENCE = 30.0     # and above 30 it stops being readable, which is the failure
+                             # mode of over-correcting the choppiness complaint
+
+
 @dataclass
 class Finding:
     rule: str
@@ -174,6 +214,28 @@ def check(text: str, *, company: str = "", track: str = "finance",
     # Numbers are the cheapest signal of a human account.
     if not re.search(r"\d", text):
         out.append(Finding("specificity", "contains no numbers at all", "warn"))
+
+    # --- the user's standing rules, checked mechanically --------------------------------
+    if m := DASHES.search(text):
+        n_dash = len(DASHES.findall(text))
+        out.append(Finding("dashes", f"{n_dash} dash(es) — he has banned these, use commas"))
+    if m := META_STRUCTURE.search(text):
+        out.append(Finding("meta_structure", f"comments on its own structure: {m.group()[:40]!r}"))
+    if m := HEDGE.search(text):
+        out.append(Finding("hedging", f"pre-concedes: {m.group()[:48]!r}"))
+    if BOLD_HEADING.search(text):
+        out.append(Finding("fragmented", "bold sub-headings inside an answer; use flowing paragraphs"))
+    sents = _sentences(text)
+    if len(sents) >= 6:
+        mean = sum(len(s.split()) for s in sents) / len(sents)
+        if mean < MIN_MEAN_SENTENCE:
+            out.append(Finding(
+                "flow", f"mean sentence {mean:.1f} words; his own formal register is 23.1, "
+                        "so this reads choppy"))
+        elif mean > MAX_MEAN_SENTENCE:
+            out.append(Finding(
+                "flow", f"mean sentence {mean:.1f} words; over 30 stops being readable, "
+                        "aim near his 23.1"))
 
     if letter:
         low = text.lower()
