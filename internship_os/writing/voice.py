@@ -65,6 +65,15 @@ DOMAIN_EXCEPTIONS = re.compile(
   | robust(?:ness)?\s+(?:test|check|standard\s+error)s?
   | scal\w+\s+law
   | comprehensive\s+income
+  # "bandwidth" as a literal hardware quantity, not the diary-capacity metaphor. the user's
+  # answer on FlashAttention is about memory bandwidth being the real bottleneck, which is
+  # the correct technical term and the whole point of the paragraph.
+  | (?:memory|network|gpu|on[- ]chip|available)\s+bandwidth
+  | bandwidth\s+(?:bottleneck|bound|limit|constraint)
+  | bandwidth\s+that\s+is\s+the
+  # "leverage" as bargaining power, distinct from both the finance noun and the AI verb.
+  | (?:lose|loses|losing|lost|gain|gains|gaining|retain|retains)\s+leverage
+  | leverage\s+over
   """
 )
 
