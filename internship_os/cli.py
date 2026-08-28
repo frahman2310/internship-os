@@ -1214,5 +1214,40 @@ async def _autofill_plan():
         return await build_plan(s)
 
 
+@doc_app.command("draft")
+def doc_draft(opportunity_id: int) -> None:
+    """Draft every required answer for one role, using the full guidance chain.
+
+    Refuses when the questions are not known, because a drafted answer to a question the
+    employer did not ask reads as a recycled essay.
+    """
+    result = asyncio.run(_draft_all(opportunity_id))
+    if isinstance(result, str):
+        console.print(f"  [yellow]{result}[/yellow]")
+        return
+    for row in result:
+        colour = "green" if row["ok"] else "yellow"
+        console.print(
+            f"[{colour}]v{row['version']}[/{colour}] {row['words']}/{row['limit']}w · "
+            f"{row['grounding']} · {'clean' if row['clean'] else 'tells found'} · {row['question'][:56]}"
+        )
+
+
+async def _draft_all(opportunity_id: int):
+    from .db import session_scope
+    from .pipeline.questions import draft_all, load
+    from .models.opportunity import Opportunity
+
+    async with session_scope() as session:
+        opp = await session.get(Opportunity, opportunity_id)
+        if opp is None:
+            return f"opportunity {opportunity_id} not found"
+        qs = load(opp)
+        if not qs.questions:
+            return (qs.gap_note or
+                    "no questions recorded for this role yet — research them or paste them in")
+        return await draft_all(session, opportunity_id)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
