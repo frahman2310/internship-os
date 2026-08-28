@@ -252,8 +252,22 @@ class Handler(BaseHTTPRequestHandler):
             elif route.path == "/api/writing/save":
                 self._json(asyncio.run(_save_piece(body)))
             elif route.path == "/api/writing/scan":
+                from ..writing.standards import report as standards_report
                 from ..writing.voice import report as voice_report
-                self._json(voice_report(body.get("text", "")))
+
+                text = body.get("text", "")
+                out = voice_report(text)
+                from ..writing.answers import classify
+
+                kind = body.get("kind", "")
+                competency = ("cover_letter" if kind == "cover_letter"
+                              else classify(body.get("title", "")))
+                out["standards"] = standards_report(
+                    text, company=body.get("company", ""),
+                    track=body.get("track", "finance"),
+                    letter=kind == "cover_letter", competency=competency,
+                )
+                self._json(out)
             elif route.path == "/api/draft":
                 draft = store.Draft.from_json(body)
                 store.save(draft)

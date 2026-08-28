@@ -61,7 +61,7 @@ def classify(question: str) -> str:
                       "why this firm", "why our", "about us", "why have you applied")),
         ("why_role", ("why this role", "why this programme", "why this scheme",
                       "why division", "which division", "why did you choose this")),
-        ("teamwork", ("team", "collaborat", "group")),
+        ("teamwork", ("team", "collaborat", "group", "with others", "alongside others")),
         ("failure", ("fail", "mistake", "went wrong", "setback")),
         ("challenge", ("challenge", "difficult", "problem you", "obstacle", "overcame")),
         ("leadership", ("lead", "led a", "responsib", "initiative")),
@@ -71,6 +71,11 @@ def classify(question: str) -> str:
     for key, needles in pairs:
         if any(n in q for n in needles):
             return key
+    # A bare "Why <Firm>?" is the commonest form of the motivation question and matches
+    # none of the phrasings above. Any remaining question opening on "why" is about
+    # motivation, so treat it as such rather than dropping it into the generic bucket.
+    if q.lstrip().startswith("why"):
+        return "why_firm"
     return "other"
 
 

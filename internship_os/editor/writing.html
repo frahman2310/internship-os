@@ -59,6 +59,12 @@
   .note .meta{font-family:var(--sans);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:#b0aa9c;margin-top:4px}
   .note .meta a{color:#b0aa9c;cursor:pointer;text-decoration:none;border-bottom:1px solid transparent}
   .note .meta a:hover{color:var(--flag);border-bottom-color:var(--flag)}
+  #ruleText{width:100%;min-height:56px;font-family:var(--serif);font-size:13px;line-height:1.5;
+    border:1px solid var(--rule);background:#fffdf9;padding:8px;outline:none;resize:vertical;color:var(--ink)}
+  .rulei{border-left:2px solid var(--ink-soft);padding:6px 0 6px 10px;margin-bottom:9px;font-size:13px;line-height:1.45}
+  .rulei .meta{font-family:var(--sans);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:#b0aa9c;margin-top:3px}
+  .rulei .meta a{color:#b0aa9c;cursor:pointer;text-decoration:none}
+  .rulei .meta a:hover{color:var(--flag)}
   #noteBox{display:none;margin-top:10px}
   #noteBox textarea{width:100%;min-height:66px;font-family:var(--serif);font-size:13px;line-height:1.5;
     border:1px solid var(--rule);background:#fffdf9;padding:8px;outline:none;resize:vertical;color:var(--ink)}
@@ -99,8 +105,13 @@
         <button id="noteCancel">Cancel</button>
       </div>
     </div>
-    <h2 style="margin-top:24px">Your notes</h2>
-    <div id="notes" class="hint">Select text in the draft and press <b>Comment</b>, or comment on the whole piece.</div>
+    <h2 style="margin-top:24px">Notes on this piece</h2>
+    <div id="notes" class="hint">Select text and press <b>Comment</b>, or comment on the whole piece.</div>
+
+    <h2 style="margin-top:26px">Writing OS rules <span style="text-transform:none;letter-spacing:0;font-weight:400">(apply everywhere)</span></h2>
+    <textarea id="ruleText" placeholder="e.g. Never open with my degree. Lead with what I did."></textarea>
+    <div class="row"><button id="ruleAdd" class="primary">Add rule</button></div>
+    <div id="rules" class="hint" style="margin-top:10px">No standing rules yet.</div>
     <h2 style="margin-top:24px">Learned from your edits</h2>
     <div id="learned" class="hint">No edits recorded yet. Every save teaches the system what you actually change.</div>
     <h2 style="margin-top:24px">Version history</h2>
@@ -182,13 +193,21 @@ async function learned(){
 
 $("#scanBtn").onclick = async () => {
   const r = await api("/api/writing/scan", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({text: $("#text").value})});
+    body: JSON.stringify({text: $("#text").value, company: current ? current.company : "",
+      kind: current ? current.kind : "", title: current ? current.title : ""})});
   const box = $("#metrics");
   let html = '<div class="metric"><span>Em dashes</span><span>'+r.em_dashes+'</span></div>';
   html += '<div class="metric"><span>Tells</span><span>'+(r.strong.length+r.medium.length)+'</span></div>';
   r.strong.forEach(h => html += '<div class="tell">'+h+'</div>');
   r.medium.forEach(h => html += '<div class="tell med">'+h+'</div>');
-  if(!r.strong.length && !r.medium.length) html += '<div class="tell" style="color:var(--ok)">clean</div>';
+  if(!r.strong.length && !r.medium.length) html += '<div class="tell" style="color:var(--ok)">no AI tells</div>';
+  const st = r.standards || {findings:[]};
+  html += '<div class="metric" style="margin-top:10px"><span>Benchmark</span><span>'
+        + (st.passed ? "pass" : "fail") + '</span></div>';
+  (st.findings||[]).forEach(f => {
+    html += '<div class="tell'+(f.severity==="warn"?" med":"")+'">'+f.rule+': '+f.detail+'</div>';
+  });
+  if(st.passed && !(st.findings||[]).length) html += '<div class="tell" style="color:var(--ok)">meets the benchmark</div>';
   box.innerHTML = html;
 };
 
@@ -239,9 +258,35 @@ document.addEventListener("keydown", e => {
   if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); openNote(); }
 });
 
+$("#ruleAdd").onclick = async () => {
+  const text = $("#ruleText").value.trim();
+  if(!text){ status("write the rule first"); return; }
+  await api("/api/writing/note", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({text, scope:"global"})});
+  $("#ruleText").value = ""; status("rule added — applies everywhere");
+  await renderNotes();
+};
+
 async function renderNotes(){
   const id = current ? current.document_id : "";
   const list = await api("/api/writing/notes?document_id="+(id||""));
+  // Standing rules and piece-level notes are shown separately: a rule is a policy, a note
+  // is a correction to one draft, and mixing them makes neither easy to review.
+  const rules = list.filter(n => n.scope === "global");
+  const rbox = $("#rules");
+  if(rules.length){
+    rbox.className = "";
+    rbox.innerHTML = rules.map(n => '<div class="rulei">'+n.text+
+      '<div class="meta"><a data-i="'+n.index+'">remove</a></div></div>').join("");
+    rbox.querySelectorAll("a[data-i]").forEach(a => a.onclick = async () => {
+      await api("/api/writing/note/resolve", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({index: parseInt(a.dataset.i,10)})});
+      await renderNotes();
+    });
+  } else { rbox.className="hint"; rbox.textContent = "No standing rules yet."; }
+  list.length = 0;
+  const pieceNotes = (await api("/api/writing/notes?document_id="+(id||""))).filter(n => n.scope !== "global");
+  list.push(...pieceNotes);
   const box = $("#notes");
   if(!list.length){
     box.className = "hint";

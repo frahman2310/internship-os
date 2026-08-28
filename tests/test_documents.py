@@ -366,3 +366,51 @@ def test_benchmark_never_outranks_his_own_instruction():
     finally:
         if notes.NOTES_PATH.exists():
             os.remove(notes.NOTES_PATH)
+
+
+def test_swap_test_does_not_fire_on_competency_answers():
+    """A "describe a time you worked in a team" answer is about the candidate, not the
+    employer; naming the firm inside it reads as forced. Applying the swap test everywhere
+    produced four false failures on the Bank of America answers."""
+    from internship_os.writing.answers import classify
+    from internship_os.writing.standards import check
+
+    generic = "I coordinated a team of 100 people and delivered the event."
+    for question in ("Describe a time you worked with others to achieve something.",
+                     "What are your strengths?", "Describe a significant challenge."):
+        rules = {f.rule for f in check(generic, company="Bank of America",
+                                       competency=classify(question))}
+        assert "swap_test" not in rules, question
+    # It must still fire where it belongs.
+    rules = {f.rule for f in check(generic, company="Bank of America",
+                                   competency=classify("Why Bank of America?"))}
+    assert "swap_test" in rules
+
+
+def test_letter_mode_follows_morgan_stanleys_close():
+    """Morgan Stanley's guide requires thanking the reader and saying you look forward to a
+    response; the general benchmark calls that close weak. The employer's own instruction
+    governs a letter addressed to that employer, so the rule must not fire in letter mode."""
+    from internship_os.writing.standards import check
+
+    letter = ("Dear Sir/Madam, I am applying to Rothschild & Co. Rothschild & Co places "
+              "analysts into M&A or Debt & Restructuring, and I saw leverage at 6x EBITDA. "
+              "Thank you for considering my application; I look forward to hearing from you. "
+              "Yours faithfully, the user")
+    assert [f.rule for f in check(letter, company="Rothschild & Co", letter=True)] == []
+    assert "close" in {f.rule for f in check(letter, company="Rothschild & Co", letter=False)}
+
+
+def test_a_single_edit_now_produces_a_rule():
+    import os
+
+    from internship_os.writing import feedback
+
+    if feedback.LEARNED_PATH.exists():
+        os.remove(feedback.LEARNED_PATH)
+    try:
+        feedback.record("I am passionate about this role.", "I built the model.")
+        assert any("passionate" in r for r in feedback.load().rules)
+    finally:
+        if feedback.LEARNED_PATH.exists():
+            os.remove(feedback.LEARNED_PATH)

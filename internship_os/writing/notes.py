@@ -124,14 +124,14 @@ def _trim(quote: str, width: int = 70) -> str:
     return q if len(q) <= width else q[: width - 1] + "…"
 
 
-def combined_guidance(document_id: int | None = None) -> str:
+def combined_guidance(document_id: int | None = None, kind: str = "") -> str:
     """Everything the writing system knows about how the user wants to be written for.
 
     Order matters and encodes precedence: what he said, then what his edits show, then
     the general register. A later section never overrides an earlier one.
     """
     from .feedback import guidance as learned_guidance
-    from .standards import STANDARDS
+    from .standards import MORGAN_STANLEY_FORM, STANDARDS
     from .voice import REGISTER
 
     # Precedence, most authoritative first. The published benchmark sits below both of
@@ -140,6 +140,9 @@ def combined_guidance(document_id: int | None = None) -> str:
     parts = [g for g in (
         guidance(document_id),      # what he said
         learned_guidance(),         # what his edits show
+        # The employer's own published form, for letters only. It sits above the general
+        # benchmark because it comes from the firm being written to.
+        MORGAN_STANLEY_FORM.strip() if kind == "cover_letter" else "",
         REGISTER.strip(),           # house register
         STANDARDS.strip(),          # published benchmark
     ) if g]

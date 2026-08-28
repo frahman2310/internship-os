@@ -10,9 +10,10 @@ plausible generalisations from one example. Counting which words he actually del
 many edits produces a fact. The rules here are arithmetic over diffs, so they are auditable
 and cannot drift.
 
-**Repetition is the evidence threshold.** One deletion is a mood; the same deletion three
-times is a preference. `MIN_OCCURRENCES` guards against learning from a single edit — the
-same small-n discipline the research engine uses.
+**One correction is enough.** The threshold started at three on the small-n reasoning the
+research engine uses, but the user asked for immediate effect: if he bothered to delete
+something, the system should stop writing it. The count is still kept, so a repeated
+correction still outranks a one-off in the ordering.
 
 **Learned rules are additive to the blacklist, never subtractive.** If the user keeps a word the
 blacklist flags, that softens the flag for him only. If he keeps deleting a word the
@@ -32,7 +33,7 @@ from pathlib import Path
 from ..config import REPO_ROOT
 
 LEARNED_PATH = REPO_ROOT / "var" / "voice_learned.json"
-MIN_OCCURRENCES = 3          # a preference, not a mood
+MIN_OCCURRENCES = 1          # the user's call: one correction is enough to act on
 MIN_PHRASE_LEN = 3           # ignore single-character noise
 # Grammatical function words carry no style signal: they appear in almost every deleted
 # clause, so without this filter the loop "learns" that the user dislikes the word "about".

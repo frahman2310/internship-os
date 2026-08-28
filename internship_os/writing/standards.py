@@ -39,13 +39,41 @@ Benchmark from strong published examples and recruiter guidance (finance and tec
   * Replace adjective self-description with one named completed action. "Flexible problem
     solver" is the failure mode; a migration you shipped is the fix.
   * Do not start consecutive sentences with "I".
-  * Close on a forward action, not "I look forward to your response".
+  * For free-text ANSWERS, close on a forward action. (Cover LETTERS follow Morgan
+    Stanley's guide instead and do thank the reader — see the letter form.)
   * Avoid motivations that would fit any job: fast-paced environment, learn a lot,
     well-rounded skill set.
   * Recruiters now read flawless grammar plus generic content as machine-written. What
     reads as human is specific, slightly untidy detail: named companies, real numbers,
     the thing that went wrong.
 """
+
+
+# Morgan Stanley's own published cover-letter guide, which the user has asked to follow
+# exactly. Where it conflicts with the general benchmark it wins: it is the employer's
+# stated preference, and the general benchmark is aggregated advice about other employers.
+MORGAN_STANLEY_FORM = """
+Cover letters must be written as LETTERS, following Morgan Stanley's published guide:
+  * Your name and contact details at the top, then the date, then the firm's name and
+    address, then a salutation — a named person if known, otherwise "Dear Sir/Madam" or
+    "Dear Hiring Team".
+  * FIRST paragraph: state the position applied for, and how you became aware of it if
+    that was a recruiting event.
+  * MIDDLE, two or three paragraphs: what attracted you to this type of work; why this
+    firm specifically; why you would fit.
+  * LAST paragraph: thank the employer and say you look forward to a response.
+  * Close with "Yours sincerely," (named person) or "Yours faithfully," (Dear Sir/Madam),
+    then your name.
+  * Do NOT repeat skills already covered in the CV against the job description. DO include
+    relevant experience the job description did not ask for — leadership, collaboration or
+    problem-solving from extracurriculars — provided it is genuinely relevant, not a stretch.
+  * Never reuse a generic letter. A wrong firm name is a deal-breaker.
+"""
+
+# Under Morgan Stanley's guide a courteous close is REQUIRED, so the general benchmark's
+# "passive close is weak" rule must not fire in letter mode. Two credible sources disagree
+# here; the employer's own instruction governs a letter addressed to that employer.
+LETTER_MODE_EXEMPT = {"close"}
 
 
 @dataclass
@@ -77,9 +105,26 @@ GENERIC_MOTIVE = re.compile(
     r"gain exposure to|broaden my horizons)\b", re.I)
 
 
-def check(text: str, *, company: str = "", track: str = "finance") -> list[Finding]:
+# The swap test asks whether a piece could be sent to a different firm. That is the right
+# question for a cover letter or a "why us" answer, and the wrong one for "describe a time
+# you worked in a team" — a competency answer is about the candidate, and naming the
+# employer inside it would read as forced. Applying the test everywhere produced four false
+# failures on the user's Bank of America answers.
+FIRM_SPECIFIC_COMPETENCIES = {"why_firm", "why_role", "commercial", "cover_letter"}
+
+
+def swap_test_applies(competency: str) -> bool:
+    return competency in FIRM_SPECIFIC_COMPETENCIES
+
+
+def check(text: str, *, company: str = "", track: str = "finance",
+          letter: bool = False, competency: str = "cover_letter") -> list[Finding]:
     """Deterministic checks against the benchmark. Cheap, auditable, and run before the user
-    sees a draft."""
+    sees a draft.
+
+    `letter=True` applies Morgan Stanley's form: the courteous close it mandates stops
+    being a finding, and the letter's structural furniture is checked instead.
+    """
     out: list[Finding] = []
     n = words(text)
     cap = MAX_WORDS_FINANCE if track == "finance" else MAX_WORDS_TECH
@@ -96,7 +141,7 @@ def check(text: str, *, company: str = "", track: str = "finance") -> list[Findi
 
     # The swap test, mechanised: a letter with no mention of the employer is generic by
     # construction. Naming them once is necessary, not sufficient.
-    if company:
+    if company and swap_test_applies(competency):
         stem = re.split(r"\s*(?:&|and)\s*", company)[0].strip().rstrip(".,")
         if stem and stem.lower() not in text.lower():
             out.append(Finding("swap_test", f"never names {company} — would suit any firm"))
@@ -129,11 +174,24 @@ def check(text: str, *, company: str = "", track: str = "finance") -> list[Findi
     # Numbers are the cheapest signal of a human account.
     if not re.search(r"\d", text):
         out.append(Finding("specificity", "contains no numbers at all", "warn"))
+
+    if letter:
+        low = text.lower()
+        if not re.search(r"\bdear\b", low):
+            out.append(Finding("letter_form", "no salutation — needs 'Dear ...'"))
+        if not re.search(r"yours (sincerely|faithfully)|kind regards|sincerely,", low):
+            out.append(Finding("letter_form", "no sign-off — needs 'Yours sincerely/faithfully,'"))
+        if not re.search(r"\bthank you\b|\bthank\b", low):
+            out.append(Finding("letter_form",
+                               "Morgan Stanley's guide requires thanking the employer", "warn"))
+        out = [f for f in out if f.rule not in LETTER_MODE_EXEMPT]
     return out
 
 
-def report(text: str, *, company: str = "", track: str = "finance") -> dict:
-    findings = check(text, company=company, track=track)
+def report(text: str, *, company: str = "", track: str = "finance",
+           letter: bool = False, competency: str = "cover_letter") -> dict:
+    findings = check(text, company=company, track=track, letter=letter,
+                     competency=competency)
     return {
         "passed": not [f for f in findings if f.severity == "fail"],
         "findings": [{"rule": f.rule, "detail": f.detail, "severity": f.severity}
