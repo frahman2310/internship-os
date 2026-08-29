@@ -92,6 +92,20 @@ def test_live_role_filter_requires_an_actual_opening_date():
     assert is_open(opp(date="2026-01-01", deadline="2026-09-30"), today)
 
 
+def test_terminal_states_are_not_live_work():
+    """A role ruled out by the gates stayed in every batch view forever, because the
+    queue filtered on dates alone and never on state."""
+    from internship_os.pipeline.live import TERMINAL_STATES
+    from internship_os.strategy.state import TRANSITIONS
+
+    for state in ("REJECTED_BY_GATE", "WITHDRAWN", "REJECTED", "EXPIRED"):
+        assert state in TERMINAL_STATES, state
+    for state in ("DISCOVERED", "QUALIFIED", "DRAFTING", "SUBMITTED"):
+        assert state not in TERMINAL_STATES, state
+    # Derived, not hardcoded: a new terminal state is excluded without a code change.
+    assert TERMINAL_STATES == frozenset(k for k, v in TRANSITIONS.items() if not v)
+
+
 def test_autofill_never_returns_legally_sensitive_fields():
     from internship_os.ats.autofill import is_reserved
 

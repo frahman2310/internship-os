@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.company import Company
 from ..models.opportunity import Opportunity
+from ..strategy.state import TRANSITIONS
 
 
 @dataclass
@@ -52,6 +53,10 @@ class LiveRole:
         if d <= 14:
             return "critical"
         return "soon" if d <= 35 else "normal"
+
+
+# States with no outgoing transition: nothing further will be done with them.
+TERMINAL_STATES = frozenset(k for k, v in TRANSITIONS.items() if not v)
 
 
 def _payload(opp: Opportunity) -> dict:
@@ -93,6 +98,10 @@ async def live_roles(
     out: list[LiveRole] = []
     for opp, company, visa in (await session.execute(stmt)).all():
         if not is_open(opp, today):
+            continue
+        # A role you have already ruled out, withdrawn from or closed on is not work.
+        # Terminal states are derived, so a new one is excluded without touching this.
+        if opp.state in TERMINAL_STATES:
             continue
         p = _payload(opp)
         out.append(
