@@ -15,9 +15,9 @@ launched yet, and planning application batches around the wrong number wastes we
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.company import Company
@@ -121,3 +121,25 @@ async def live_roles(
 
 def batches(roles: list[LiveRole], size: int = 10) -> list[list[LiveRole]]:
     return [roles[i : i + size] for i in range(0, len(roles), size)]
+
+async def sync_age_days(
+    session: AsyncSession, *, industry: str | None = None, region: str = "UK"
+) -> float | None:
+    """How long since these rows were last confirmed against the source.
+
+    A stale queue is the dangerous failure: roles whose opening date has since been
+    filled in simply never appear, and nothing looks wrong. `last_seen_at` is already
+    written on every sync, so the freshest one is the last sync.
+    """
+    stmt = select(func.max(Opportunity.last_seen_at))
+    if region:
+        stmt = stmt.where(Opportunity.region == region)
+    if industry:
+        stmt = stmt.where(Opportunity.industry == industry)
+    last = (await session.execute(stmt)).scalar_one_or_none()
+    if not last:
+        return None
+    seen = datetime.fromisoformat(last.replace("Z", "+00:00"))
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - seen).total_seconds() / 86400

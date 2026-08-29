@@ -1117,6 +1117,13 @@ def batch_list(industry: str = typer.Option("Finance", help="Finance | Tech")) -
     """How many roles are actually open, and how many batches that is."""
     total, count = asyncio.run(_batch_overview(industry))
     console.print(f"{OK} {total} live {industry} roles · {count} batches of 10")
+    age = asyncio.run(_sync_age(industry))
+    if age is None:
+        console.print("[yellow]never synced — run `ios sync trackr`[/yellow]")
+    elif age >= 1:
+        console.print(
+            f"[yellow]last synced {age:.0f} days ago; roles that have opened since "
+            f"are missing from this count — run `ios sync trackr`[/yellow]")
 
 
 @batch_app.command("show")
@@ -1180,6 +1187,14 @@ def autofill_cmd() -> None:
     console.print(table)
     console.print(f"\n  [red]never filled[/red] [dim]({len(plan.reserved)}):[/dim] "
                   + ", ".join(plan.reserved))
+
+
+async def _sync_age(industry: str):
+    from .db import session_scope
+    from .pipeline.live import sync_age_days
+
+    async with session_scope() as s:
+        return await sync_age_days(s, industry=industry)
 
 
 async def _batch_overview(industry: str):

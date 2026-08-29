@@ -1,5 +1,7 @@
 """Phase 5: deterministic CV assembly."""
 
+import pytest
+
 from internship_os.documents.plan import is_clean_skill, score_evidence, tokenize
 from internship_os.documents.render import esc
 
@@ -104,6 +106,34 @@ def test_terminal_states_are_not_live_work():
         assert state not in TERMINAL_STATES, state
     # Derived, not hardcoded: a new terminal state is excluded without a code change.
     assert TERMINAL_STATES == frozenset(k for k, v in TRANSITIONS.items() if not v)
+
+
+@pytest.mark.asyncio
+async def test_stale_sync_is_detected(session):
+    """A stale queue silently hides roles that have opened since the last sync. That is
+    how six live roles, one closing in nine days, went unnoticed."""
+    from datetime import datetime, timedelta, timezone
+
+    from internship_os.models.company import Company
+    from internship_os.models.opportunity import Opportunity
+    from internship_os.pipeline.live import sync_age_days
+
+    assert await sync_age_days(session, industry="Finance") is None  # never synced
+
+    session.add(Company(name="Acme", canonical_name="acme"))
+    await session.flush()
+    old = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+    for seen in (old, now):
+        o = Opportunity(company_id=1, source_adapter="t", dedup_key=f"k{seen}",
+                        title="x", region="UK", industry="Finance")
+        o.first_seen_at, o.last_seen_at = seen, seen
+        session.add(o)
+    await session.flush()
+
+    # The freshest row is what counts: one stale row does not make the queue stale.
+    assert await sync_age_days(session, industry="Finance") < 1
+    assert await sync_age_days(session, industry="Tech") is None
 
 
 def test_autofill_never_returns_legally_sensitive_fields():
