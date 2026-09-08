@@ -145,3 +145,17 @@ class TestApprovalBoundary:
         await session.commit()
         assert opp.state == "APPLYING"
         assert opp.state_changed_at <= utcnow()
+
+
+def test_step_towards_finds_a_path_to_submitted():
+    """Recording a human submission walked eight hardcoded states. The path is derived
+    from TRANSITIONS instead, and never routes through a terminal state."""
+    from internship_os.cli import _step_towards
+    from internship_os.strategy.state import TRANSITIONS
+
+    assert _step_towards("APPROVED", TRANSITIONS) == "APPLYING"
+    assert _step_towards("APPLYING", TRANSITIONS) == "SUBMITTED"
+    first = _step_towards("DISCOVERED", TRANSITIONS)
+    assert first == "QUALIFIED"
+    assert _step_towards("SUBMITTED", TRANSITIONS) != "WITHDRAWN"
+    assert _step_towards("OFFER", TRANSITIONS) is None      # terminal, no path
