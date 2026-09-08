@@ -579,3 +579,29 @@ def test_commercial_awareness_answers_need_not_name_the_firm():
     competency = classify("Please name a news item that has recently driven the financial markets?")
     assert "swap_test" not in {f.rule for f in check(answer, company="IMC Trading",
                                                      competency=competency)}
+
+
+def test_a_project_is_never_reused_inside_one_firm():
+    """Palantir had Orderly in four of five answers and Qatalyst in four of six. Inside a
+    single application that reads as a candidate with one thing to say."""
+    from internship_os.writing.standards import projects_used, repeated_projects
+
+    assert projects_used("I built Orderly, an ordering platform") == {"Orderly"}
+    assert projects_used("Nothing relevant here") == set()
+
+    clean = {"q1": "Orderly is a platform I built.",
+             "q2": "FaizOS is a Claude Code plugin.",
+             "q3": "At Lakson I wrote macro briefings."}
+    assert repeated_projects(clean) == {}
+
+    # A single passing mention is allowed as supporting evidence.
+    passing = {"q1": "Orderly is a platform I built. Orderly runs in production.",
+               "q2": "FaizOS is a plugin. FaizOS ran 38 builds. I also built Orderly.",
+               "q3": "AgentF automated LP reporting."}
+    assert repeated_projects(passing) == {}
+
+    # Load-bearing in two answers is the failure.
+    dirty = {"q1": "Orderly is a platform I built. Orderly taught me concurrency.",
+             "q2": "Orderly again. Orderly is why I understand production.",
+             "q3": "AgentF automated LP reporting."}
+    assert repeated_projects(dirty) == {"Orderly": ["q1", "q2"]}

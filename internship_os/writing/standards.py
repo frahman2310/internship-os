@@ -98,6 +98,26 @@ the user's standing rules. These are absolute and override every other instructi
     feeling, but far less than a personal essay would carry.
   * Answer the question that was asked, completely and directly.
   * No decorative white space, no gratuitous line breaks inside an answer.
+  * A project may be the CRUX of only ONE answer per firm. It may still appear in one
+    line elsewhere as supporting evidence, but never carry two answers. If Orderly is the
+    project answer, the product answer runs on something else. Spread the evidence across
+    a firm: Orderly, AgentF, FaizOS, the Sales Intelligence Pipeline, Personal University,
+    AgentNotify, the payment-token work, Lakson, Grant Thornton, Arif Habib.
+  * PREFER THE PORTFOLIO OVER THE CV. Employers already hold the CV, so repeating it
+    spends the answer on what they have read. They have never seen the portfolio: AgentF's
+    funding, Orderly's architecture, the sales pipeline's 758 leads and 614 drafts,
+    FaizOS's 38 builds, Personal University shipped as one 470KB offline file with a
+    lossless SHA-256 rebuild and 15 of 15 Playwright tests, AgentNotify, the NFC token
+    work. Lead with those and use CV lines to corroborate, not the reverse.
+  * Match the weight of the evidence to the weight of the question. An achievement or
+    "proudest moment" question needs a built, funded or shipped thing, never an
+    investment note or a piece of coursework.
+  * A non-academic achievement is fine, and often stronger, but it must be tied back to
+    academic work, professional experience or a transferable skill. Never leave it as a
+    standalone anecdote.
+  * In FINANCE answers, lead with the AI and FinTech ventures wherever they are the
+    stronger evidence. AgentF is funded, Orderly has paying venues, the token work is a
+    real payments product. Those beat a shadowing week or a written note.
 """
 
 # Rules that can be checked mechanically. Everything above that cannot be is prompt text.
@@ -272,3 +292,56 @@ def report(text: str, *, company: str = "", track: str = "finance",
                      for f in findings],
         "words": words(text),
     }
+
+
+# Evidence the user can draw on. The repetition check is cross-piece, so it cannot live in
+# check(), which only ever sees one answer at a time. Repeating a project inside one
+# firm's set is the failure it exists to catch.
+EVIDENCE_MARKERS = {
+    "Orderly": r"\bOrderly\b",
+    "AgentF": r"\bAgentF\b",
+    "FaizOS": r"\bFaizOS\b",
+    "AgentNotify": r"\bAgentNotify\b",
+    "Personal University": r"Personal University",
+    "Sales Intelligence Pipeline": r"[Ss]ales [Ii]ntelligence|outreach engine|\b758\b|\b614\b",
+    "Payment tokens": r"NFC|payment token|single[- ]use token",
+    "Lakson": r"\bLakson\b",
+    "Grant Thornton Pakistan": r"Grant Thornton Pakistan|Alfan|Fatima Group",
+    "Grant Thornton UK": r"Debt Advisory|SONIA",
+    "Arif Habib": r"Arif Habib|Dolmen",
+    "Track team": r"track team|under[- ]17|900 days",
+    "UJALA": r"UJALA",
+    "Event management": r"ticketed events|\$8,000",
+}
+
+
+def projects_used(text: str) -> set[str]:
+    return {name for name, pat in EVIDENCE_MARKERS.items()
+            if re.search(pat, text or "")}
+
+
+def load_bearing(text: str) -> set[str]:
+    """Projects an answer actually rests on, as opposed to name-checks.
+
+    the user's rule: a project may appear in one line of another answer as supporting
+    evidence, but it cannot be the crux of two answers for the same firm. A single
+    mention is a reference; two or more means the answer is built on it.
+    """
+    out = set()
+    for name, pat in EVIDENCE_MARKERS.items():
+        if len(re.findall(pat, text or "")) >= 2:
+            out.add(name)
+    return out
+
+
+def repeated_projects(pieces: dict[str, str]) -> dict[str, list[str]]:
+    """Evidence that is load-bearing in more than one of a firm's pieces.
+
+    `pieces` maps a label to its text. Empty dict means the set is clean. Passing
+    mentions are deliberately not flagged.
+    """
+    seen: dict[str, list[str]] = {}
+    for label, text in pieces.items():
+        for name in load_bearing(text):
+            seen.setdefault(name, []).append(label)
+    return {k: v for k, v in seen.items() if len(v) > 1}
