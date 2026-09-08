@@ -993,7 +993,7 @@ async def _opp_submitted(opportunity_id: int, quote: str | None, push: bool):
     from sqlalchemy import select
 
     from .db import session_scope
-    from .models.infra import Approval
+    from .models.application import Approval
     from .models.opportunity import FitAssessment, Opportunity
     from .strategy.state import TRANSITIONS, transition
 
