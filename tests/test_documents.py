@@ -605,3 +605,21 @@ def test_a_project_is_never_reused_inside_one_firm():
              "q2": "Orderly again. Orderly is why I understand production.",
              "q3": "AgentF automated LP reporting."}
     assert repeated_projects(dirty) == {"Orderly": ["q1", "q2"]}
+
+
+def test_workday_cxs_url_is_derived_from_both_url_shapes():
+    """Workday publishes the job description at a no-login JSON endpoint. Deriving it is
+    what turns 117 opaque portals into portals whose description is already read."""
+    from internship_os.ats.adapters.workday import cxs_url
+
+    assert cxs_url(
+        "https://capitalone.wd12.myworkdayjobs.com/en-US/Capital_One/job/Strategy_R999268"
+    ) == ("https://capitalone.wd12.myworkdayjobs.com/wday/cxs/capitalone/"
+          "Capital_One/job/Strategy_R999268")
+
+    assert cxs_url(
+        "https://wd1.myworkdaysite.com/en-US/recruiting/wf/WellsFargoJobs/job/EMEA_R-1"
+    ) == "https://wd1.myworkdaysite.com/wday/cxs/wf/WellsFargoJobs/job/EMEA_R-1"
+
+    assert cxs_url("https://moelis-careers.tal.net/vx/candidate/so/pm/1") is None
+    assert cxs_url("") is None
