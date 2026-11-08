@@ -1,7 +1,7 @@
 """Write research produced by Claude into the store, through the same guards as the
 gateway path.
 
-the user asked for research to run on Claude credits rather than the free-model gateway. That
+The user asked for research to run on Claude credits rather than the free-model gateway. That
 changes who does the reasoning, and nothing else: a claim arriving this way is subject to
 exactly the checks a locally-generated one is.
 

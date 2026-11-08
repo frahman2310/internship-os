@@ -62,23 +62,19 @@ class Settings(BaseSettings):
     pdflatex_path: Path = Field(
         default=Path.home() / "Library/TinyTeX/bin/universal-darwin/pdflatex"
     )
+    # Every field below is overridable from the environment or .env (field name
+    # uppercased), so local absolute paths never need to live in the source.
     trackr_cli_path: Path = Field(
-        default=Path(
-            "/Users/user/Jobs: CV/ai-job-search/.agents/skills/trackr-search/cli/src/cli.ts"
-        )
+        default=REPO_ROOT / "external/trackr-search/cli/src/cli.ts"
     )
     bun_path: str = Field(default="bun")
 
-    # --- source profile (canonical candidate data lives in the fork for now) --
+    # --- source profile ----------------------------------------------------
+    # Candidate data is personal and lives outside the repo: var/ is gitignored.
     profile_md_path: Path = Field(
-        default=Path(
-            "/Users/user/Jobs: CV/ai-job-search/.claude/skills/"
-            "job-application-assistant/01-candidate-profile.md"
-        )
+        default=REPO_ROOT / "var/profile/candidate-profile.md"
     )
-    master_cv_path: Path = Field(
-        default=Path("/Users/user/Jobs: CV/ai-job-search/cv/main_user_master.tex")
-    )
+    master_cv_path: Path = Field(default=REPO_ROOT / "var/cv/master.tex")
 
     def research_model_chain(self) -> list[str]:
         return [m.strip() for m in self.llm_research_models.split(",") if m.strip()]

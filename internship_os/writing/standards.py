@@ -84,7 +84,7 @@ LETTER_MODE_EXEMPT = {"close"}
 # he called "small awkward sentences" measured 16.4. That gap is what the flow check below
 # is measuring, rather than a stylistic opinion.
 HOUSE_RULES = """
-the user's standing rules. These are absolute and override every other instruction here:
+The user's standing rules. These are absolute and override every other instruction here:
   * NEVER use an em dash or an en dash. Use a comma. This has no exceptions.
   * Write in flowing paragraphs. No bold sub-headings inside an answer, no fragment lists,
     no one-line paragraphs. Sentences should run long and connect to each other; his own

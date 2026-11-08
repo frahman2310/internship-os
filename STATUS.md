@@ -4,7 +4,8 @@ Durable snapshot so conversation context can be discarded without losing anythin
 Last updated: 2026-08-22
 
 ## Owner
-visa-sponsoring employers. Targeting **Summer 2027**, Finance **and** Tech.
+Single-user system. The candidate profile, CV sources and evidence store are
+personal data and live in `var/`, which is gitignored and never published.
 
 ## Two repos
 | Path | What |

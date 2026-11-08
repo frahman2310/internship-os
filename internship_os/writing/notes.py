@@ -124,6 +124,31 @@ def _trim(quote: str, width: int = 70) -> str:
     return q if len(q) <= width else q[: width - 1] + "…"
 
 
+WRITING_LOOP = Path.home() / "Add On's" / "writing_loop.py"
+
+
+def writing_os_guidance() -> str:
+    """Rules the user approved in the Writing OS loop (~/Add On's/LEARNED_RULES.md).
+
+    Read through writing_loop.py's own parser so retirements are honoured the same way in
+    both places. A missing or broken loop must never stop a draft, so failures yield nothing.
+    """
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("writing_loop", WRITING_LOOP)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        rules = [r["text"] for r in mod.parse_rules() if r["format"] in ("application", "all")]
+    except Exception:
+        return ""
+    if not rules:
+        return ""
+    # Newest first: in the rules file a later rule wins a conflict.
+    return ("Rules the user approved from his Writing OS loop, newest first:\n  - "
+            + "\n  - ".join(reversed(rules)))
+
+
 def combined_guidance(document_id: int | None = None, kind: str = "") -> str:
     """Everything the writing system knows about how the user wants to be written for.
 
@@ -140,6 +165,7 @@ def combined_guidance(document_id: int | None = None, kind: str = "") -> str:
     parts = [g for g in (
         HOUSE_RULES.strip(),        # his standing rules, absolute
         guidance(document_id),      # what he said on this draft
+        writing_os_guidance(),      # rules he approved in the Writing OS loop
         learned_guidance(),         # what his edits show
         # The employer's own published form, for letters only. It sits above the general
         # benchmark because it comes from the firm being written to.

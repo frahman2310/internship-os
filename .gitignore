@@ -10,3 +10,4 @@ __pycache__/
 .pytest_cache/
 secrets.json
 **/secrets.json
+scripts_build_cvs.py

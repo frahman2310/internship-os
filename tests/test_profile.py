@@ -38,20 +38,20 @@ SAMPLE = textwrap.dedent(
     | Language | Level | Notes |
     |----------|-------|-------|
     | English | Native | |
-    | Urdu | Native | |
+    | French | Native | |
 
     ## Education
 
     | Degree | Period | Institution | Key Topics |
     |--------|--------|-------------|------------|
-    | BSc Finance | Sep 2025 – Jun 2028 | Example University | Quant Methods |
+    | BSc Economics | Sep 2025 – Jun 2028 | Example University | Quant Methods |
 
     ## Professional Experience
 
-    ### Advisory Intern - Grant Thornton Pakistan (Jul 2026 – Aug 2026)
+    ### Advisory Intern - Example Advisory LLP (Jul 2026 – Aug 2026)
     Overseas (Advisory / Valuations)
-    - Built DCF and present-value models for UAE companies
-    - Performed impairment assessments for Zehrat Labnan
+    - Built DCF and present-value models for regional companies
+    - Performed impairment assessments for a portfolio client
 
     ### Founder & Director - Event Management (Self-Founded) (Sep 2023 – Apr 2025)
     - Oversaw an $8,000 operating budget and delivered $1,000 net profit
@@ -99,12 +99,12 @@ class TestParsing:
         parsed = parse_profile_markdown(profile_md)
         assert parsed.identity["name"] == "the user"
         assert parsed.identity["email"] == "user@example.com"
-        assert [lang["language"] for lang in parsed.languages] == ["English", "Urdu"]
+        assert [lang["language"] for lang in parsed.languages] == ["English", "French"]
 
     def test_experience_heading_split(self, profile_md):
         """Titles contain em-dashes and commas, so the org is after the LAST ' - '."""
         parsed = parse_profile_markdown(profile_md)
-        gt = next(e for e in parsed.experiences if e["organisation"] == "Grant Thornton Pakistan")
+        gt = next(e for e in parsed.experiences if e["organisation"] == "Example Advisory LLP")
         assert gt["title"] == "Advisory Intern"
         assert (gt["start_date"], gt["end_date"]) == ("2026-07", "2026-08")
         assert len(gt["bullets"]) == 2
@@ -199,7 +199,7 @@ class TestConsistency:
         """A source disagreement must surface. Picking a winner silently is the failure mode."""
         tex = tmp_path / "master.tex"
         tex.write_text(
-            r"\entry{Example University}{— BSc Finance}{Sep 2025 -- Jun 2028}"
+            r"\entry{Example University}{— BSc Economics}{Sep 2025 -- Jun 2028}"
             "\n"
             r"\entry{Jane Street}{— Intern}{2027}",
             encoding="utf-8",
@@ -209,9 +209,9 @@ class TestConsistency:
 
         joined = " ".join(issues)
         assert "janestreet" in joined, "CV-only entry must be reported"
-        assert "grantthorntonpakistan" in joined, "markdown-only entry must be reported"
+        assert "exampleadvisoryllp" in joined, "markdown-only entry must be reported"
         # and the parse itself is untouched by the comparison
-        assert any(e["organisation"] == "Grant Thornton Pakistan" for e in parsed.experiences)
+        assert any(e["organisation"] == "Example Advisory LLP" for e in parsed.experiences)
 
     def test_missing_cv_is_reported_not_crashed(self, profile_md, tmp_path):
         issues = cross_check_master_cv(

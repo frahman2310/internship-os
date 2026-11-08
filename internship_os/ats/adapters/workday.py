@@ -9,6 +9,7 @@ read and I know whether a questionnaire is coming".
 
 Two URL shapes in the wild:
     https://<tenant>.wd12.myworkdayjobs.com/en-US/<site>/job/<Title>_<REQ>
+(some tenants serve the same page under /details/ instead of /job/; CXS always wants /job/)
     https://wd1.myworkdaysite.com/en-US/recruiting/<tenant>/<site>/job/<Title>_<REQ>
 both map to  .../wday/cxs/<tenant>/<site>/job/<Title>_<REQ>
 """
@@ -24,10 +25,10 @@ UA = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
 
 SELF_HOSTED = re.compile(
     r"https?://(?P<tenant>[a-z0-9-]+)\.(?P<wd>wd\d+)\.myworkdayjobs\.com/"
-    r"(?:[a-zA-Z-]+/)?(?P<site>[^/]+)/job/(?P<path>[^?#]+)")
+    r"(?:[a-zA-Z-]+/)?(?P<site>[^/]+)/(?:job|details)/(?P<path>[^?#]+)")
 SITE_HOSTED = re.compile(
     r"https?://(?P<wd>wd\d+)\.myworkdaysite\.com/(?:[a-zA-Z-]+/)?recruiting/"
-    r"(?P<tenant>[^/]+)/(?P<site>[^/]+)/job/(?P<path>[^?#]+)")
+    r"(?P<tenant>[^/]+)/(?P<site>[^/]+)/(?:job|details)/(?P<path>[^?#]+)")
 
 
 def cxs_url(apply_url: str) -> str | None:

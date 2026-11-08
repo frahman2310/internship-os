@@ -153,11 +153,16 @@ class Learned:
 
     @property
     def rules(self) -> list[str]:
-        """Rules that have cleared the repetition threshold, strongest first."""
+        """Rules that have cleared the repetition threshold, strongest first.
+
+        A word he has both removed and added, across different edits, is a change of mind
+        (Sir/Madam, then Hiring Team, then Sir/Madam again), not a preference either way.
+        """
+        both = set(self.dislikes) & set(self.prefers)
         out = [(n, f"never write {w!r} — removed {n} times")
-               for w, n in self.dislikes.items() if n >= MIN_OCCURRENCES]
+               for w, n in self.dislikes.items() if n >= MIN_OCCURRENCES and w not in both]
         out += [(n, f"prefer {w!r} — added {n} times")
-                for w, n in self.prefers.items() if n >= MIN_OCCURRENCES]
+                for w, n in self.prefers.items() if n >= MIN_OCCURRENCES and w not in both]
         if self.edits_seen >= MIN_OCCURRENCES and abs(self.mean_length_delta) >= 8:
             verb = "cuts" if self.mean_length_delta < 0 else "expands"
             out.append((99, f"he {verb} drafts by ~{abs(self.mean_length_delta):.0f} words on average — "

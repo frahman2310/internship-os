@@ -371,10 +371,8 @@ async def _save_piece(body: dict) -> dict:
             kind=body["kind"], slug=body["slug"], title=body.get("title", ""),
             text=body["text"], by_user=True,
         )
-    rules = []
-    if before.strip() and before.strip() != body["text"].strip():
-        learned = feedback.record(before, body["text"])
-        rules = learned.rules[:6]
+    # save_piece records the edit; this only reports what the loop now knows.
+    rules = feedback.load().rules[:6] if before.strip() != body["text"].strip() else []
     return {"ok": True, "version": piece.version, "words": piece.word_count, "rules": rules}
 
 

@@ -1,9 +1,9 @@
 {
-  "owner": "the user",
+  "owner": "example-user",
   "updated": "2026-08-06",
   "recommendations": [
-    "Every UK summer-internship listing open right now across finance & tech (58 total). Quant/trading firms (●) are the highest-leverage — dual fit, all visa-sponsoring, mostly rolling.",
-    "Rolling roles fill continuously — do them before fixed-deadline ones. Hard deadlines: Atlas 14 Sep, BlackRock 30 Sep, Bank of America 11 Oct, Blackstone 30 Oct.",
+    "Every UK summer-internship listing open right now across finance & tech (58 total).",
+    "Rolling roles fill continuously \u2014 do them before fixed-deadline ones. Hard deadlines: Atlas 14 Sep, BlackRock 30 Sep, Bank of America 11 Oct, Blackstone 30 Oct.",
     "CV per row is in its note: Master for quant, Finance for IB/PE/AM, Tech for pure SWE. Only Da Vinci needs a cover letter."
   ],
   "listings": [
@@ -22,7 +22,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "VI > VI > VI > AC",
-      "note": "Buy-Side. Closes 14 Sep (39d left). Process: VI > VI > VI > AC. Requires CV, written answers. Soonest hard deadline of everything open. Pure PE — DCF/LBO focus; the GT Pakistan valuations + Lakson research fit directly. Finance CV."
+      "note": "Buy-Side. Closes 14 Sep (39d left). Process: VI > VI > VI > AC. Requires CV, written answers. Soonest hard deadline of everything open."
     },
     {
       "id": "vvndebzwb5",
@@ -39,7 +39,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "HV > VI > VI",
-      "note": "Asset Management. Closes 30 Sep (55d left). Process: HV > VI > VI. Requires CV. Same programme has finance and tech streams — choose the stream on the form. Asset-management scale; visa-sponsoring."
+      "note": "Asset Management. Closes 30 Sep (55d left). Process: HV > VI > VI. Requires CV."
     },
     {
       "id": "md7v26htff",
@@ -56,7 +56,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Closes 30 Sep (55d left). Requires CV. Same programme has finance and tech streams — choose the stream on the form. Asset-management scale; visa-sponsoring."
+      "note": "Software Engineering. Closes 30 Sep (55d left). Requires CV."
     },
     {
       "id": "pcv5hecqpx",
@@ -73,7 +73,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "HV > TI > AC",
-      "note": "Bulge Bracket. Closes 11 Oct (66d left). Process: HV > TI > AC. Requires CV, written answers. Bulge-bracket summer analyst. Process is HireVue → tests → assessment centre. Finance CV; the GT spring week is a strong signal."
+      "note": "Bulge Bracket. Closes 11 Oct (66d left). Process: HV > TI > AC. Requires CV, written answers. Bulge-bracket summer analyst. Process is HireVue \u2192 tests \u2192 assessment centre."
     },
     {
       "id": "36jiyb6sx2",
@@ -124,7 +124,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Closes 31 Dec (147d left). Requires CV, optional cover letter. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Quant Developer. Closes 31 Dec (147d left). Requires CV, optional cover letter. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "ft3m2hxomj",
@@ -141,7 +141,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "g7zwm2m26p",
@@ -158,7 +158,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. Smaller fintech — Software Engineer intern; lead hard with Orderly + AgentF. Tech CV."
+      "note": "Software Engineering. Requires CV. Smaller fintech \u2014 Software Engineer intern; lead hard with Orderly + AgentF. Tech CV."
     },
     {
       "id": "tuzf25ew1u",
@@ -175,7 +175,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Middle Market. Rolling — fills as it goes, apply early. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Middle Market. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "ch6mzf9ta9",
@@ -192,7 +192,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV, optional cover letter. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Software Engineering. Requires CV, optional cover letter."
     },
     {
       "id": "u6u7g8623u",
@@ -209,7 +209,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "TI > VI > AC",
-      "note": "Buy-Side. Rolling — fills as it goes, apply early. Process: TI > VI > AC. Requires CV, written answers. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Buy-Side. Rolling \u2014 fills as it goes, apply early. Process: TI > VI > AC. Requires CV, written answers."
     },
     {
       "id": "pegpg3vyvg",
@@ -226,7 +226,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > VI > AC. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > VI > AC. Requires CV."
     },
     {
       "id": "6r8jhmqm46",
@@ -243,7 +243,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "AI and Machine Learning. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "AI and Machine Learning. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "p6kh1exq1h",
@@ -260,7 +260,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Quant Developer. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "z0eitu2myj",
@@ -277,7 +277,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Data Science. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Data Science. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "lpskj0okz1",
@@ -294,7 +294,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA > HV > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > HV > VI > AC. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > HV > VI > AC. Requires CV."
     },
     {
       "id": "c0ppc33b4p",
@@ -311,7 +311,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Software Engineering. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "exhuqzlxhm",
@@ -328,7 +328,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Buy-Side. Rolling — fills as it goes, apply early. Requires CV. Flagship multi-strategy fund; extremely competitive. Master CV, apply the moment it opens."
+      "note": "Buy-Side. Rolling \u2014 fills as it goes, apply early. Requires CV. Flagship multi-strategy fund; extremely competitive. Master CV, apply the moment it opens."
     },
     {
       "id": "zo14nc37p9",
@@ -345,7 +345,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV. Market-making arm — quant/dev heavy. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV. Market-making arm \u2014 quant/dev heavy. Master CV."
     },
     {
       "id": "e3m7xup793",
@@ -362,7 +362,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Promoted. Rolling — fills as it goes, apply early. Requires CV. Buy-side / asset management — the Lakson investment-research angle fits. Finance CV."
+      "note": "Promoted. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "a9w45dqs3e",
@@ -379,7 +379,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Promoted. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Promoted. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "k8asf1h97h",
@@ -396,7 +396,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV, optional cover letter. Principal trading firm — trading and software roles both open, both visa-sponsoring. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV, optional cover letter. Principal trading firm \u2014 trading and software roles both open, both visa-sponsoring. Master CV."
     },
     {
       "id": "o07azexqr5",
@@ -413,7 +413,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV, optional cover letter. Principal trading firm — trading and software roles both open, both visa-sponsoring. Master CV."
+      "note": "Quant Developer. Requires CV, optional cover letter. Principal trading firm \u2014 trading and software roles both open, both visa-sponsoring. Master CV."
     },
     {
       "id": "itmon9wb4z",
@@ -430,7 +430,7 @@
       "coverLetter": "Yes",
       "writtenAnswers": "No",
       "process": "OA > TI > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > TI > VI > AC. Requires CV, cover letter. If you applied in January, re-apply now. Rolling quant-trading role — one of the few that REQUIRES a cover letter, so draft it early (I can). Options market-maker; expect a maths/probability test."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > TI > VI > AC. Requires CV, cover letter. Rolling quant-trading role \u2014 one of the few that REQUIRES a cover letter, so draft it early (I can). Options market-maker; expect a maths/probability test."
     },
     {
       "id": "gr8jadtco5",
@@ -447,7 +447,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "TI > AC > VI",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: TI > AC > VI. Requires CV, written answers. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: TI > AC > VI. Requires CV, written answers."
     },
     {
       "id": "jgbgdkn8pv",
@@ -464,7 +464,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA > VI > VI > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > VI > VI > VI > AC. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > VI > VI > VI > AC. Requires CV."
     },
     {
       "id": "isciipmnni",
@@ -481,7 +481,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "AI and Machine Learning. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "AI and Machine Learning. Requires CV."
     },
     {
       "id": "l72te2e5dy",
@@ -498,7 +498,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Data Science. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Data Science. Requires CV."
     },
     {
       "id": "kbrgyn6z80",
@@ -515,7 +515,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA > Case Study > AC",
-      "note": "Buy-Side. Rolling — fills as it goes, apply early. Process: OA > Case Study > AC. Requires CV. Singapore sovereign wealth fund, London — long-horizon investing. Finance/Master CV."
+      "note": "Buy-Side. Rolling \u2014 fills as it goes, apply early. Process: OA > Case Study > AC. Requires CV. Singapore sovereign wealth fund, London \u2014 long-horizon investing. Finance/Master CV."
     },
     {
       "id": "fhfnv05uki",
@@ -532,7 +532,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. HR Note: Unlikely to hire anyone for London office, most tech roles for Singapore. Singapore sovereign wealth fund, London — long-horizon investing. Finance/Master CV."
+      "note": "Software Engineering. Requires CV. HR Note: Unlikely to hire anyone for London office, most tech roles for Singapore. Singapore sovereign wealth fund, London \u2014 long-horizon investing. Finance/Master CV."
     },
     {
       "id": "jaxn3f8xxp",
@@ -549,7 +549,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV. Open to second-year students. Systematic fund — quant researcher and software-dev roles both open. Master/Tech CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV. Open to second-year students. Systematic fund \u2014 quant researcher and software-dev roles both open. Master/Tech CV."
     },
     {
       "id": "pxq146w78t",
@@ -566,7 +566,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV, optional cover letter. Systematic fund — quant researcher and software-dev roles both open. Master/Tech CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV, optional cover letter. Systematic fund \u2014 quant researcher and software-dev roles both open. Master/Tech CV."
     },
     {
       "id": "bneyi0gkx6",
@@ -583,7 +583,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV, optional cover letter. Systematic fund — quant researcher and software-dev roles both open. Master/Tech CV."
+      "note": "Quant Developer. Requires CV, optional cover letter. Systematic fund \u2014 quant researcher and software-dev roles both open. Master/Tech CV."
     },
     {
       "id": "wan7ar5jyb",
@@ -600,7 +600,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "ljhsf6ixxz",
@@ -617,7 +617,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Quant Developer. Requires CV."
     },
     {
       "id": "gbignl0m21",
@@ -634,7 +634,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "Yes",
       "process": "OA > HV > TI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > HV > TI > AC. Requires CV, optional cover letter, written answers. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > HV > TI > AC. Requires CV, optional cover letter, written answers."
     },
     {
       "id": "p8wodks9hk",
@@ -651,7 +651,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "AI and Machine Learning. Requires CV. Based in Amsterdam, open to UK citizens. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "AI and Machine Learning. Requires CV. Based in Amsterdam, open to UK citizens."
     },
     {
       "id": "zc2z0mwgz2",
@@ -668,7 +668,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV, optional cover letter. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Quant Developer. Requires CV, optional cover letter."
     },
     {
       "id": "lofwodoeg3",
@@ -685,7 +685,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "Case Study > TI > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: Case Study > TI > VI > AC. Requires CV, written answers. Elite quant shop — hires quant traders AND devs, sponsors visas, rolling. the single best-fit target; apply early. Interview leans on mental maths, probability and markets intuition."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: Case Study > TI > VI > AC. Requires CV, written answers. Elite quant shop \u2014 hires quant traders AND devs, sponsors visas, rolling. Interview leans on mental maths, probability and markets intuition."
     },
     {
       "id": "pqi68hrixa",
@@ -702,7 +702,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": null,
-      "note": "Quant Developer. Requires CV, written answers. Elite quant shop — hires quant traders AND devs, sponsors visas, rolling. the single best-fit target; apply early. Interview leans on mental maths, probability and markets intuition."
+      "note": "Quant Developer. Requires CV, written answers. Elite quant shop \u2014 hires quant traders AND devs, sponsors visas, rolling. Interview leans on mental maths, probability and markets intuition."
     },
     {
       "id": "j9bml0081h",
@@ -719,7 +719,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV, optional cover letter. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV, optional cover letter."
     },
     {
       "id": "r1cg361uv3",
@@ -736,7 +736,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV, optional cover letter. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Quant Developer. Requires CV, optional cover letter."
     },
     {
       "id": "xkd7cksryn",
@@ -770,7 +770,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Buy-Side. Rolling — fills as it goes, apply early. Requires CV. Several angles open (quant research, tech, non-investment) — pick the ONE closest to you, do not spray. Master CV."
+      "note": "Buy-Side. Rolling \u2014 fills as it goes, apply early. Requires CV. Master CV."
     },
     {
       "id": "xvndqdfnik",
@@ -787,7 +787,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA > TI > VI > VI",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > TI > VI > VI. Requires CV. Several angles open (quant research, tech, non-investment) — pick the ONE closest to you, do not spray. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > TI > VI > VI. Requires CV. Master CV."
     },
     {
       "id": "lornafjwll",
@@ -804,7 +804,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. Several angles open (quant research, tech, non-investment) — pick the ONE closest to you, do not spray. Master CV."
+      "note": "Software Engineering. Requires CV. Master CV."
     },
     {
       "id": "l2ciixx399",
@@ -821,7 +821,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": null,
-      "note": "Software Engineering. Requires CV, written answers. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Software Engineering. Requires CV, written answers. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "hjv32e8dau",
@@ -838,7 +838,7 @@
       "coverLetter": "No",
       "writtenAnswers": "Yes",
       "process": "OA > VI > AC",
-      "note": "Elite Boutique. Rolling — fills as it goes, apply early. Process: OA > VI > AC. Requires CV, written answers. Investment banking — GT Debt Advisory spring week + valuations map here. Finance CV."
+      "note": "Elite Boutique. Rolling \u2014 fills as it goes, apply early. Process: OA > VI > AC. Requires CV, written answers. Investment banking \u2014 GT Debt Advisory spring week + valuations map here. Finance CV."
     },
     {
       "id": "kgaz7t35du",
@@ -855,7 +855,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Miscellaneous. Rolling — fills as it goes, apply early. Requires CV. High-growth fintech — internships across product/tech; the Orderly + payments work is on-theme. Tech CV."
+      "note": "Miscellaneous. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "b47zr1865m",
@@ -872,7 +872,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. High-growth fintech — internships across product/tech; the Orderly + payments work is on-theme. Tech CV."
+      "note": "Software Engineering. Requires CV."
     },
     {
       "id": "aa3sguncgj",
@@ -889,7 +889,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "Yes",
       "process": null,
-      "note": "Software Engineering. Requires CV, optional cover letter, written answers. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Software Engineering. Requires CV, optional cover letter, written answers. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "fhjymdzi8w",
@@ -906,7 +906,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV, optional cover letter. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV, optional cover letter."
     },
     {
       "id": "nx5tp91e0i",
@@ -923,7 +923,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Requires CV. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Requires CV."
     },
     {
       "id": "x457vsm5ux",
@@ -940,7 +940,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Software Engineering. Requires CV. Software / data — lead with Orderly’s production stack. Tech CV."
+      "note": "Software Engineering. Requires CV. Software / data \u2014 lead with Orderly\u2019s production stack. Tech CV."
     },
     {
       "id": "tmlue1jlu5",
@@ -957,7 +957,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": "OA > VI > VI > AC",
-      "note": "Trading and Quant. Rolling — fills as it goes, apply early. Process: OA > VI > VI > AC. Requires CV, optional cover letter. Electronic market maker — quant trading and SWE roles open. Master/Tech CV."
+      "note": "Trading and Quant. Rolling \u2014 fills as it goes, apply early. Process: OA > VI > VI > AC. Requires CV, optional cover letter. Electronic market maker \u2014 quant trading and SWE roles open. Master/Tech CV."
     },
     {
       "id": "cddsrhma5j",
@@ -974,7 +974,7 @@
       "coverLetter": "Optional",
       "writtenAnswers": "No",
       "process": null,
-      "note": "Quant Developer. Requires CV, optional cover letter. Electronic market maker — quant trading and SWE roles open. Master/Tech CV."
+      "note": "Quant Developer. Requires CV, optional cover letter. Electronic market maker \u2014 quant trading and SWE roles open. Master/Tech CV."
     },
     {
       "id": "ksedh1jacq",
@@ -991,7 +991,7 @@
       "coverLetter": "No",
       "writtenAnswers": "No",
       "process": "OA >  VI > VI > AC",
-      "note": "Promoted. Rolling — fills as it goes, apply early. Process: OA >  VI > VI > AC. Requires CV. Based in Slovakia, open to students in UK. Quant/trading — plays to the dual finance+tech edge. Master CV."
+      "note": "Promoted. Rolling \u2014 fills as it goes, apply early. Process: OA >  VI > VI > AC. Requires CV. Based in Slovakia, open to students in UK."
     }
   ]
 }

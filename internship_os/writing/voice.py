@@ -65,7 +65,7 @@ DOMAIN_EXCEPTIONS = re.compile(
   | robust(?:ness)?\s+(?:test|check|standard\s+error)s?
   | scal\w+\s+law
   | comprehensive\s+income
-  # "bandwidth" as a literal hardware quantity, not the diary-capacity metaphor. the user's
+  # "bandwidth" as a literal hardware quantity, not the diary-capacity metaphor. The user's
   # answer on FlashAttention is about memory bandwidth being the real bottleneck, which is
   # the correct technical term and the whole point of the paragraph.
   | (?:memory|network|gpu|on[- ]chip|available)\s+bandwidth

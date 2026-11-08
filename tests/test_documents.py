@@ -267,59 +267,46 @@ def test_namespaced_topics_keep_their_half_life():
     assert half_life("something_unmapped") == 18
 
 
-def test_learning_loop_learns_style_words_not_grammar():
+def test_learning_loop_learns_style_words_not_grammar(tmp_path, monkeypatch):
     """the user's edits are the training signal. The loop must learn that he deletes
     "passionate" while ignoring "about", which merely rides along in every deleted clause."""
-    import os
-
     from internship_os.writing import feedback
 
-    if feedback.LEARNED_PATH.exists():
-        os.remove(feedback.LEARNED_PATH)
-    try:
-        pairs = [
-            ("I am very passionate about finance and would really like to add value.",
-             "I want to work on live financing decisions."),
-            ("I am passionate about markets and would really like to contribute.",
-             "I want to build models that inform recommendations."),
-            ("I am passionate about this role and really believe I can add value.",
-             "I want to learn the work properly."),
-        ]
-        for before, after in pairs:
-            feedback.record(before, after)
-        learned = feedback.load()
-        assert learned.edits_seen == 3
-        assert learned.dislikes.get("passionate", 0) >= 3
-        assert learned.dislikes.get("really", 0) >= 3
-        # Grammar words must never become rules.
-        assert "about" not in learned.dislikes
-        assert "would" not in learned.dislikes
-        rules = " ".join(learned.rules)
-        assert "passionate" in rules
-        # These edits average about five words shorter, below the eight-word threshold, so
-        # no length rule should fire yet — a small trim is not a stated preference.
-        assert "draft shorter" not in rules
-        assert -8 < learned.mean_length_delta < 0
-    finally:
-        if feedback.LEARNED_PATH.exists():
-            os.remove(feedback.LEARNED_PATH)
+    # Never touch the real var/voice_learned.json: a test run used to delete it.
+    monkeypatch.setattr(feedback, "LEARNED_PATH", tmp_path / "voice_learned.json")
+    pairs = [
+        ("I am very passionate about finance and would really like to add value.",
+         "I want to work on live financing decisions."),
+        ("I am passionate about markets and would really like to contribute.",
+         "I want to build models that inform recommendations."),
+        ("I am passionate about this role and really believe I can add value.",
+         "I want to learn the work properly."),
+    ]
+    for before, after in pairs:
+        feedback.record(before, after)
+    learned = feedback.load()
+    assert learned.edits_seen == 3
+    assert learned.dislikes.get("passionate", 0) >= 3
+    assert learned.dislikes.get("really", 0) >= 3
+    # Grammar words must never become rules.
+    assert "about" not in learned.dislikes
+    assert "would" not in learned.dislikes
+    rules = " ".join(learned.rules)
+    assert "passionate" in rules
+    # These edits average about five words shorter, below the eight-word threshold, so
+    # no length rule should fire yet — a small trim is not a stated preference.
+    assert "draft shorter" not in rules
+    assert -8 < learned.mean_length_delta < 0
 
 
-def test_length_rule_fires_only_on_a_sustained_trim():
-    import os
-
+def test_length_rule_fires_only_on_a_sustained_trim(tmp_path, monkeypatch):
     from internship_os.writing import feedback
 
-    if feedback.LEARNED_PATH.exists():
-        os.remove(feedback.LEARNED_PATH)
-    try:
-        long_draft = " ".join(["word"] * 60) + " passionate."
-        for _ in range(3):
-            feedback.record(long_draft, "Short and direct.")
-        assert "draft shorter" in " ".join(feedback.load().rules)
-    finally:
-        if feedback.LEARNED_PATH.exists():
-            os.remove(feedback.LEARNED_PATH)
+    monkeypatch.setattr(feedback, "LEARNED_PATH", tmp_path / "voice_learned.json")
+    long_draft = " ".join(["word"] * 60) + " passionate."
+    for _ in range(3):
+        feedback.record(long_draft, "Short and direct.")
+    assert "draft shorter" in " ".join(feedback.load().rules)
 
 
 def test_identical_save_is_not_recorded_as_an_edit():
@@ -460,7 +447,7 @@ def test_a_single_edit_now_produces_a_rule():
             os.remove(feedback.LEARNED_PATH)
 
 
-def test_user_standing_rules_are_enforced_mechanically():
+def test_standing_rules_are_enforced_mechanically():
     """His rules came as corrections on real drafts, so they live in code rather than only
     in a notes file that could be cleared. Each check below caused a real failure in the
     Bank of America answers before it existed."""
@@ -621,5 +608,44 @@ def test_workday_cxs_url_is_derived_from_both_url_shapes():
         "https://wd1.myworkdaysite.com/en-US/recruiting/wf/WellsFargoJobs/job/EMEA_R-1"
     ) == "https://wd1.myworkdaysite.com/wday/cxs/wf/WellsFargoJobs/job/EMEA_R-1"
 
+    # some tenants serve the posting under /details/; CXS still wants /job/
+    assert cxs_url(
+        "https://vhr-orbis.wd3.myworkdayjobs.com/en-US/Orbis_Careers/details/"
+        "Investment-Analyst-Internship_JR564?source=Trackr"
+    ) == ("https://vhr-orbis.wd3.myworkdayjobs.com/wday/cxs/vhr-orbis/"
+          "Orbis_Careers/job/Investment-Analyst-Internship_JR564")
+
     assert cxs_url("https://moelis-careers.tal.net/vx/candidate/so/pm/1") is None
     assert cxs_url("") is None
+
+
+def test_a_change_of_mind_is_not_a_rule(tmp_path, monkeypatch):
+    from internship_os.writing import feedback
+
+    monkeypatch.setattr(feedback, "LEARNED_PATH", tmp_path / "voice_learned.json")
+    feedback.record("Dear Sir/Madam,", "Dear Hiring Team,")
+    feedback.record("Dear Hiring Team,", "Dear Sir/Madam,")
+    assert not any("madam" in r or "hiring" in r for r in feedback.load().rules)
+
+
+def test_writing_os_rules_reach_drafts_and_fail_safe(tmp_path, monkeypatch):
+    import shutil
+
+    from internship_os.writing import notes
+
+    monkeypatch.setattr(notes, "WRITING_LOOP", tmp_path / "missing.py")
+    assert notes.writing_os_guidance() == ""      # no loop installed: drafting still works
+
+    loop = tmp_path / "writing_loop.py"
+    shutil.copy(notes.Path.home() / "Add On's" / "writing_loop.py", loop)
+    (tmp_path / "LEARNED_RULES.md").write_text(
+        "# Learned Rules\n"
+        "\n## R-1 · application · 2026-09-14 · edits\nJoin short sentences.\n_Evidence: x_\n"
+        "\n## R-2 · email · 2026-09-14 · email\nOpen with Hi.\n_Evidence: x_\n"
+        "\n## R-3 · all · 2026-09-14 · verdict\nLess dramatic.\n_Evidence: x_\n"
+        "\n## R-4 · all · 2026-09-14 · retire\nR-3 changed my mind\n_Evidence: x_\n")
+    monkeypatch.setattr(notes, "WRITING_LOOP", loop)
+    text = notes.writing_os_guidance()
+    assert "Join short sentences." in text
+    assert "Open with Hi." not in text            # email rules stay out of applications
+    assert "Less dramatic." not in text           # retired

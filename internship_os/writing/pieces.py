@@ -111,6 +111,11 @@ async def save_piece(
     await session.flush()
     doc.current_version_id = version.id
     await session.commit()
+    # Learn here, not in each caller: an edit saved by any path is still the user correcting
+    # the machine. Machine saves are never learned from, or the loop reinforces itself.
+    if by_user and last is not None and (last.source_text or "").strip():
+        from .feedback import record
+        record(last.source_text, text)
     return await _as_piece(session, doc, version, title)
 
 
