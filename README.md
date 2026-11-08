@@ -71,3 +71,15 @@ suite runs fully offline, which is why it costs nothing to run.
 - **Phase 3.5 — Trackr account write-back:** next. Requires discovering the status endpoint
   at runtime from a session you log into yourself.
 - Phases 4–7 (research engine, documents, browser assist, learning loop) follow.
+
+## Personal data
+
+This is a single-user system, and the person's data is deliberately not in the repo.
+Everything identifying lives under `var/`, which is gitignored: the candidate profile,
+CV sources, the evidence store and the SQLite database. The committed code carries no
+names, contact details or credentials, and the paths it needs are read from the
+environment or a local `.env` (see `internship_os/config.py`).
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
